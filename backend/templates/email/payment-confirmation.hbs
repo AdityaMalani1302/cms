@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Confirmation - CMS</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
+        .success-icon { font-size: 50px; margin: 15px 0; }
+        .content { padding: 30px 20px; }
+        .payment-summary { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        .amount { font-size: 32px; font-weight: bold; color: #155724; margin: 10px 0; }
+        .payment-details { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #28a745; }
+        .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #e9ecef; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { font-weight: 600; color: #495057; }
+        .detail-value { color: #28a745; font-weight: 500; }
+        .download-button { display: inline-block; background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #e9ecef; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">💳</div>
+            <h1>Payment Confirmed!</h1>
+            <p>Your payment has been processed successfully</p>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{customerName}},</p>
+            
+            <p>Great news! We have successfully received and processed your payment. Thank you for choosing CMS for your courier needs.</p>
+            
+            <div class="payment-summary">
+                <h3 style="margin-top: 0; color: #155724;">✅ Payment Successful</h3>
+                <div class="amount">₹{{amount}}</div>
+                <p style="color: #155724; margin-bottom: 0;">Payment processed on {{paymentDate}}</p>
+            </div>
+            
+            <div class="payment-details">
+                <h3>💳 Payment Details</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Transaction ID:</span>
+                    <span class="detail-value">{{paymentId}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Booking Reference:</span>
+                    <span class="detail-value">{{refNumber}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Tracking ID:</span>
+                    <span class="detail-value">{{trackingId}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Amount Paid:</span>
+                    <span class="detail-value">₹{{amount}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Payment Date:</span>
+                    <span class="detail-value">{{paymentDate}}</span>
+                </div>
+                
+                {{#if invoiceNumber}}
+                <div class="detail-row">
+                    <span class="detail-label">Invoice Number:</span>
+                    <span class="detail-value">{{invoiceNumber}}</span>
+                </div>
+                {{/if}}
+            </div>
+            
+            {{#if downloadUrl}}
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{downloadUrl}}" class="download-button">📄 Download Invoice</a>
+            </div>
+            {{/if}}
+            
+            <div style="background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h4 style="margin-top: 0; color: #1976d2;">📦 What's Next?</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #1976d2;">
+                    <li>Your package is now confirmed for pickup and delivery</li>
+                    <li>You'll receive regular updates on your package status</li>
+                    <li>Track your package anytime using your tracking ID</li>
+                    <li>Keep this email as proof of payment</li>
+                </ul>
+            </div>
+            
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <h4 style="margin-top: 0; color: #856404;">📋 Important Notes</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #856404;">
+                    <li>Save this email for your records</li>
+                    <li>Your transaction ID is: <strong>{{paymentId}}</strong></li>
+                    <li>If you have questions, contact us with your reference number</li>
+                    <li>Refunds (if applicable) will be processed to the original payment method</li>
+                </ul>
+            </div>
+            
+            <p>Thank you for trusting CMS with your delivery needs. We're committed to providing you with excellent service!</p>
+            
+            <p>If you have any questions about this payment or your booking, please don't hesitate to contact our customer support team.</p>
+            
+            <p>Best regards,<br>
+            <strong>The CMS Team</strong></p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>CMS - Courier Management System</strong></p>
+            <p>Secure Payment Processing | Fast Delivery Service</p>
+            
+            <div style="margin: 15px 0;">
+                <a href="#" style="color: #007bff; text-decoration: none; margin: 0 10px;">📧 Email Support</a> |
+                <a href="#" style="color: #007bff; text-decoration: none; margin: 0 10px;">📞 Call Support</a> |
+                <a href="#" style="color: #007bff; text-decoration: none; margin: 0 10px;">🌐 Website</a>
+            </div>
+            
+            <p style="font-size: 12px; margin-top: 15px;">
+                This is an automated payment confirmation. Please do not reply to this email.<br>
+                For support, contact us at support@cms.com or call 1800-123-4567
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

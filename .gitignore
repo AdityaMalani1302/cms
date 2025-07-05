@@ -1,0 +1,78 @@
+# Environment files - CRITICAL: Contains secrets!
+*.env
+*.env.local
+*.env.development
+*.env.production
+config.env
+backend/config.env
+frontend/.env*
+
+# Sensitive files
+CREDENTIALS.md
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+.vuepress/dist
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+
+# Uploads (may contain sensitive user data)
+uploads/
+backend/uploads/
+
+# Test coverage
+coverage/
+.nyc_output
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

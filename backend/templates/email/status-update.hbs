@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Package Status Update - CMS</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
+        .content { padding: 30px 20px; }
+        .status-update { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #28a745; }
+        .status-badge { display: inline-block; background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+        .timeline { margin: 20px 0; }
+        .timeline-item { display: flex; align-items: center; margin: 15px 0; padding: 10px; border-radius: 5px; background: #f8f9fa; }
+        .timeline-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; }
+        .old-status { background: #6c757d; color: white; }
+        .new-status { background: #28a745; color: white; }
+        .cta-button { display: inline-block; background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #e9ecef; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Package Status Update</h1>
+            <p>Your package is on the move!</p>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{customerName}},</p>
+            
+            <p>We have an update on your package status. Here's what's new:</p>
+            
+            <div class="status-update">
+                <h3>📍 Current Status</h3>
+                <div class="status-badge">{{newStatus}}</div>
+                <p><strong>Package:</strong> {{refNumber}}</p>
+                <p><strong>Updated:</strong> {{updateTime}}</p>
+            </div>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-icon old-status">👆</div>
+                    <div>
+                        <strong>Previous Status:</strong><br>
+                        {{oldStatus}}
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-icon new-status">✨</div>
+                    <div>
+                        <strong>Current Status:</strong><br>
+                        {{newStatus}}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{trackingUrl}}" class="cta-button">🔍 Track Your Package</a>
+            </div>
+            
+            <div style="background: #e7f3ff; border: 1px solid #b3d7ff; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <h4 style="margin-top: 0; color: #0066cc;">💡 What This Means</h4>
+                {{#if (eq newStatus "Out for Delivery")}}
+                <p style="color: #0066cc;">Great news! Your package is out for delivery and should arrive today. Please ensure someone is available to receive it.</p>
+                {{else if (eq newStatus "Delivered")}}
+                <p style="color: #0066cc;">🎉 Congratulations! Your package has been successfully delivered. We hope you're satisfied with our service!</p>
+                {{else if (eq newStatus "In Transit")}}
+                <p style="color: #0066cc;">Your package is currently traveling to its destination. It's making good progress!</p>
+                {{else if (eq newStatus "Picked Up")}}
+                <p style="color: #0066cc;">Your package has been collected and is now in our delivery network.</p>
+                {{else}}
+                <p style="color: #0066cc;">Your package status has been updated. You can track its progress using the link above.</p>
+                {{/if}}
+            </div>
+            
+            <p>Continue tracking your package for real-time updates. We'll notify you of any further changes.</p>
+            
+            <p>Thank you for choosing CMS!</p>
+            
+            <p>Best regards,<br>
+            <strong>The CMS Team</strong></p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>CMS - Courier Management System</strong></p>
+            <p>For support, contact us at support@cms.com or call 1800-123-4567</p>
+            <p style="font-size: 12px; margin-top: 15px;">
+                This is an automated message. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html> 
