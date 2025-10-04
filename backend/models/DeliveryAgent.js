@@ -6,109 +6,25 @@ const deliveryAgentSchema = new mongoose.Schema({
   agentId: {
     type: String,
     required: true,
-    unique: true,
-    trim: true,
-    maxlength: 20
+    unique: true
   },
-  agentName: {
+  name: {
     type: String,
-    required: true,
-    trim: true,
-    maxlength: 120
-  },
-  agentEmail: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true,
-    maxlength: 120
-  },
-  agentPassword: {
-    type: String,
-    required: true,
-    minlength: 8,
-    validate: {
-      validator: function(password) {
-        const validation = validatePasswordComplexity(password);
-        return validation.isValid;
-      },
-      message: function(props) {
-        const validation = validatePasswordComplexity(props.value);
-        return validation.errors.join(', ');
-      }
-    }
-  },
-  agentMobileNumber: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 15
-  },
-  assignedBranch: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 120
-  },
-  vehicleType: {
-    type: String,
-    enum: ['bike', 'car', 'van', 'truck', 'bicycle'],
     required: true
   },
-  vehicleNumber: {
-    type: String,
-    required: false,
-    trim: true,
-    maxlength: 20
-  },
-  licenseNumber: {
-    type: String,
-    required: false,
-    trim: true,
-    maxlength: 30
-  },
-  // Address information
-  address: {
+  email: {
     type: String,
     required: true,
-    trim: true,
-    maxlength: 500
+    unique: true
   },
-  city: {
+  password: {
     type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
+    required: true
   },
-  state: {
+  phoneNumber: {
     type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
+    required: true
   },
-  pincode: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 10
-  },
-  // Work schedule
-  workingHours: {
-    startTime: {
-      type: String,
-      default: '09:00'
-    },
-    endTime: {
-      type: String,
-      default: '18:00'
-    }
-  },
-  workingDays: [{
-    type: String,
-    enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-  }],
-  // Status and availability
   status: {
     type: String,
     enum: ['active', 'inactive', 'on_leave'],
@@ -118,89 +34,123 @@ const deliveryAgentSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  currentLocation: {
-    latitude: {
-      type: Number,
-      required: false
-    },
-    longitude: {
-      type: Number,
-      required: false
-    },
-    lastUpdated: {
-      type: Date,
-      default: Date.now
-    }
-  },
-  // Performance metrics
-  totalDeliveries: {
+  activePickups: {
     type: Number,
     default: 0
   },
-  successfulDeliveries: {
+  maxPickups: {
+    type: Number,
+    default: 10
+  },
+  area: {
+    type: String,
+    required: true
+  },
+  assignedBranch: {
+    type: String,
+    required: true
+  },
+  vehicleType: {
+    type: String,
+    required: true,
+    enum: ['bike', 'car', 'van', 'truck', 'bicycle', 'Motorcycle', 'Scooter']
+  },
+  vehicleNumber: String,
+  licenseNumber: String,
+  workingHours: {
+    startTime: String,
+    endTime: String
+  },
+  workingDays: [{
+    type: String,
+    enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  }],
+  totalPickups: {
     type: Number,
     default: 0
   },
-  failedDeliveries: {
+  successfulPickups: {
     type: Number,
     default: 0
   },
-  averageRating: {
+  failedPickups: {
     type: Number,
-    default: 0,
-    min: 0,
-    max: 5
+    default: 0
   },
-  // Emergency contact
-  emergencyContact: {
-    name: {
-      type: String,
-      trim: true,
-      maxlength: 120
-    },
-    phoneNumber: {
-      type: String,
-      trim: true,
-      maxlength: 15
-    },
-    relationship: {
-      type: String,
-      trim: true,
-      maxlength: 50
-    }
-  }
+  assignedCouriers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Courier'
+  }]
 }, {
   timestamps: true
 });
 
 // Hash password before saving
 deliveryAgentSchema.pre('save', async function(next) {
-  if (!this.isModified('agentPassword')) {
-    return next();
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password')) return next();
+  
+  try {
+    // Hash password with cost of 12
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
   }
-  this.agentPassword = await bcrypt.hash(this.agentPassword, 10);
-  next();
 });
 
-// Compare password method
+// Method to compare password
 deliveryAgentSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.agentPassword);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Calculate success rate
-deliveryAgentSchema.methods.getSuccessRate = function() {
-  if (this.totalDeliveries === 0) return 0;
-  return (this.successfulDeliveries / this.totalDeliveries * 100).toFixed(2);
+// Method to check if agent can take more pickups
+deliveryAgentSchema.methods.canTakePickups = function() {
+  return this.status === 'active' && 
+         this.isAvailable && 
+         this.activePickups < this.maxPickups;
 };
 
-// Update location
-deliveryAgentSchema.methods.updateLocation = function(latitude, longitude) {
-  this.currentLocation = {
-    latitude,
-    longitude,
-    lastUpdated: new Date()
-  };
+// Method to assign courier for pickup
+deliveryAgentSchema.methods.assignCourier = function(courierId) {
+  if (!this.canTakePickups()) {
+    throw new Error('Agent cannot take more pickups at this time');
+  }
+  
+  this.assignedCouriers.push(courierId);
+  this.activePickups += 1;
+  
+  if (this.activePickups >= this.maxPickups) {
+    this.isAvailable = false;
+  }
+  
   return this.save();
 };
 
-module.exports = mongoose.model('DeliveryAgent', deliveryAgentSchema); 
+// Method to complete courier pickup
+deliveryAgentSchema.methods.completeCourierPickup = function(courierId, success = true) {
+  this.assignedCouriers = this.assignedCouriers.filter(id => !id.equals(courierId));
+  this.activePickups -= 1;
+  this.totalPickups += 1;
+  
+  if (success) {
+    this.successfulPickups += 1;
+  } else {
+    this.failedPickups += 1;
+  }
+  
+  if (this.activePickups < this.maxPickups) {
+    this.isAvailable = true;
+  }
+  
+  return this.save();
+};
+
+const DeliveryAgent = mongoose.model('DeliveryAgent', deliveryAgentSchema);
+
+module.exports = DeliveryAgent; 

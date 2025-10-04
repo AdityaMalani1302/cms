@@ -81,19 +81,28 @@ const Support = () => {
     setLoading(true);
 
     try {
-      const supportData = {
-        name: user?.name || '',
-        email: user?.email || '',
-        subject: contactForm.subject,
-        priority: contactForm.priority,
-        message: contactForm.message,
-        userType: 'customer'
+      // Map frontend subjects to backend categories
+      const categoryMap = {
+        'Booking Issue': 'Booking Issue',
+        'Delivery Problem': 'Delivery Problem', 
+        'Payment Query': 'Payment',
+        'Technical Support': 'Technical',
+        'Account Help': 'General',
+        'Feedback': 'General',
+        'Other': 'Others'
       };
 
-      const response = await axios.post('/api/contact', supportData);
+      const supportData = {
+        subject: contactForm.subject,
+        message: contactForm.message,
+        category: categoryMap[contactForm.subject] || 'General'
+      };
+
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const response = await axios.post(`${baseURL}/api/support/tickets`, supportData);
       
       if (response.data.success) {
-        toast.success('Support request submitted successfully! We will get back to you soon.');
+        toast.success(`Support ticket created successfully! Ticket ID: ${response.data.ticket.ticketId}`);
         setContactForm({
           subject: '',
           priority: 'Medium',

@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Button, Input, LoadingSpinner, Alert, Modal, PasswordInput } from '../../components/ui';
+import { showToast } from '../../utils/toastUtils';
 import axios from 'axios';
 
 const AdminProfile = () => {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -51,21 +52,29 @@ const AdminProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await axios.put('/api/admin/profile', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        updateUser(response.data.data);
+        // Update sessionStorage with new admin data
+        const updatedUser = { ...user, ...response.data.data };
+        sessionStorage.setItem('user', JSON.stringify(updatedUser));
+        // Update local form data to reflect the changes
+        setFormData({
+          adminName: updatedUser.adminName || '',
+          email: updatedUser.email || '',
+          phone: updatedUser.phone || '',
+          department: updatedUser.department || 'Administration',
+          role: updatedUser.role || 'Super Admin',
+          bio: updatedUser.bio || 'System Administrator for Courier Management System'
+        });
         setIsEditing(false);
-        setAlert({ type: 'success', message: 'Profile updated successfully!' });
+        showToast.success('Profile updated successfully!');
       }
     } catch (error) {
-      setAlert({ 
-        type: 'error', 
-        message: error.response?.data?.message || 'Failed to update profile'
-      });
+      showToast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -81,23 +90,23 @@ const AdminProfile = () => {
 
   const handlePasswordUpdate = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      setAlert({ type: 'error', message: 'All password fields are required' });
+      showToast.error('All password fields are required');
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setAlert({ type: 'error', message: 'New passwords do not match' });
+      showToast.error('New passwords do not match');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setAlert({ type: 'error', message: 'New password must be at least 6 characters long' });
+      showToast.error('New password must be at least 6 characters long');
       return;
     }
 
     setPasswordLoading(true);
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await axios.put('/api/admin/change-password', {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
@@ -106,15 +115,12 @@ const AdminProfile = () => {
       });
 
       if (response.data.success) {
-        setAlert({ type: 'success', message: 'Password updated successfully!' });
+        showToast.success('Password updated successfully!');
         setShowPasswordModal(false);
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
     } catch (error) {
-      setAlert({ 
-        type: 'error', 
-        message: error.response?.data?.message || 'Failed to update password'
-      });
+      showToast.error(error.response?.data?.message || 'Failed to update password');
     } finally {
       setPasswordLoading(false);
     }

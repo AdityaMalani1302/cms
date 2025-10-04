@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import AIChatbot from '../components/AIChatbot';
 
 const Home = () => {
-  const [trackingNumber, setTrackingNumber] = useState('');
   const [aboutData, setAboutData] = useState(null);
   const [branches, setBranches] = useState([]);
   const [contactForm, setContactForm] = useState({
@@ -42,15 +42,6 @@ const Home = () => {
       }
     } catch (error) {
       console.error('Error fetching branches:', error);
-    }
-  };
-
-  const handleTrackingSubmit = (e) => {
-    e.preventDefault();
-    if (trackingNumber.trim()) {
-      navigate('/track-parcel', { state: { searchData: trackingNumber } });
-    } else {
-      toast.error('Please enter a tracking number');
     }
   };
 
@@ -99,16 +90,16 @@ const Home = () => {
       icon: 'fas fa-plane',
       title: 'Air Freight',
       description: 'Fast and secure air delivery for urgent packages and time-sensitive shipments worldwide.',
-      image: '/images/services/air-freight.jpg',
-      fallback: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=400&q=80',
+      image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+      fallback: 'https://images.unsplash.com/photo-1540962351504-03099e0a754b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
       color: 'from-purple-500 to-purple-600'
     },
     {
       icon: 'fas fa-box',
       title: 'Package Forwarding',
       description: 'Professional package handling and forwarding services with tracking and insurance options.',
-      image: '/images/services/package-forwarding.jpg',
-      fallback: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=400&q=80',
+      image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+      fallback: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
       color: 'from-green-500 to-green-600'
     }
   ];
@@ -116,8 +107,8 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative gradient-bg hero-pattern overflow-hidden">
-        <div className="absolute inset-0 bg-black/20"></div>
+      <section className="relative bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 hero-pattern overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-white animate-slide-up">
@@ -125,35 +116,28 @@ const Home = () => {
                 Fast & Reliable 
                 <span className="block text-warning-300">Courier Services</span>
               </h1>
-              <p className="text-xl md:text-2xl mb-8 text-gray-200 leading-relaxed">
-                Track your packages with ease. We provide secure, timely delivery services 
-                across the country with real-time tracking and 24/7 customer support.
+              <p className="text-xl md:text-2xl mb-8 text-gray-100 leading-relaxed">
+                We provide secure, timely delivery services across the country 
+                with professional handling and 24/7 customer support.
               </p>
 
-              {/* Tracking Form */}
-              <div className="card-elevated p-6 bg-white/10 backdrop-blur-lg border border-white/20">
-                <div className="flex items-center mb-4">
-                  <div className="w-8 h-8 bg-warning-500 rounded-lg flex items-center justify-center mr-3">
-                    <i className="fas fa-search text-white text-sm"></i>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white">Track Your Package</h3>
+              {/* Key Features Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8">
+                <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 text-center">
+                  <i className="fas fa-clock text-warning-300 text-2xl mb-2"></i>
+                  <h3 className="text-white font-semibold text-lg mb-1">Same Day Delivery</h3>
+                  <p className="text-gray-200 text-sm">Express delivery within 24 hours</p>
                 </div>
-                <form onSubmit={handleTrackingSubmit} className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    placeholder="Enter your tracking number"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-white/90 border border-white/30 rounded-xl focus:ring-4 focus:ring-warning-300 focus:border-warning-500 transition-all duration-300 text-secondary-800 placeholder-secondary-500"
-                  />
-                  <button
-                    type="submit"
-                    className="btn-primary bg-gradient-to-r from-warning-500 to-warning-600 hover:from-warning-600 hover:to-warning-700 whitespace-nowrap"
-                  >
-                    <i className="fas fa-search mr-2"></i>
-                    Track Now
-                  </button>
-                </form>
+                <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 text-center">
+                  <i className="fas fa-shield-alt text-warning-300 text-2xl mb-2"></i>
+                  <h3 className="text-white font-semibold text-lg mb-1">Secure Handling</h3>
+                  <p className="text-gray-200 text-sm">100% safe and insured packages</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 text-center">
+                  <i className="fas fa-map-marker-alt text-warning-300 text-2xl mb-2"></i>
+                  <h3 className="text-white font-semibold text-lg mb-1">Real-time Tracking</h3>
+                  <p className="text-gray-200 text-sm">Track your parcel every step</p>
+                </div>
               </div>
             </div>
 
@@ -270,6 +254,135 @@ const Home = () => {
                     e.target.src = "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80";
                   }}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 testimonial-pattern overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 animate-slide-up">
+            <h2 className="text-4xl md:text-5xl font-bold text-white font-display mb-4">
+              What Our <span className="text-warning-300">Customers Say</span>
+            </h2>
+            <p className="text-xl text-white/90 max-w-3xl mx-auto">
+              Trusted by thousands of businesses and individuals across the country
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Kavya Menon",
+                role: "E-commerce Business Owner",
+                company: "Fashion Hub",
+                image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&h=150&crop=face",
+                rating: 5,
+                testimonial: "Exceptional service! Their same-day delivery has been a game-changer for our business. Professional team, reliable tracking, and customers love the quick delivery.",
+                location: "Mumbai"
+              },
+              {
+                name: "Rajesh Patel",
+                role: "Small Business Owner",
+                company: "Tech Solutions",
+                image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&w=150&h=150&fit=crop&crop=face",
+                rating: 5,
+                testimonial: "I've been using their services for over 2 years. Never had a single lost package. The tracking system is excellent and customer support is always helpful.",
+                location: "Delhi"
+              },
+              {
+                name: "Priya Sharma",
+                role: "Marketing Manager",
+                company: "Digital Agency",
+                image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&w=150&h=150&fit=crop&crop=face",
+                rating: 5,
+                testimonial: "Outstanding courier service! They handle our urgent document deliveries with utmost care. The real-time updates give us complete peace of mind.",
+                location: "Bangalore"
+              },
+              {
+                name: "Arjun Reddy",
+                role: "Import/Export Business",
+                company: "Global Traders",
+                image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&w=150&h=150&fit=crop&crop=face",
+                rating: 5,
+                testimonial: "Their international shipping service is top-notch. Competitive rates, secure packaging, and excellent tracking. Highly recommend for business shipments.",
+                location: "Chennai"
+              },
+              {
+                name: "Anita Gupta",
+                role: "Online Retailer",
+                company: "Home Decor Plus",
+                image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&w=150&h=150&fit=crop&crop=face",
+                rating: 5,
+                testimonial: "Reliable, fast, and cost-effective! Their cash on delivery service has helped us expand our customer base significantly. Great customer experience.",
+                location: "Pune"
+              },
+              {
+                name: "Vikram Singh",
+                role: "Freelance Designer",
+                company: "Creative Studio",
+                image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&w=150&h=150&fit=crop&crop=face",
+                rating: 5,
+                testimonial: "Perfect for sending design materials to clients. The package handling is careful, delivery is always on time, and the pricing is very reasonable.",
+                location: "Hyderabad"
+              }
+            ].map((testimonial, index) => (
+              <div
+                key={testimonial.name}
+                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 animate-scale-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="flex items-center mb-4">
+                  <img
+                    src={testimonial.image}
+                    alt={testimonial.name}
+                    className="w-12 h-12 rounded-full object-cover mr-4"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1566753323558-f4e0952af115?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&h=150&crop=face";
+                    }}
+                  />
+                  <div className="flex-1">
+                    <h4 className="text-white font-semibold">{testimonial.name}</h4>
+                    <p className="text-white/80 text-sm">{testimonial.role}</p>
+                    <p className="text-warning-300 text-xs">{testimonial.company} • {testimonial.location}</p>
+                  </div>
+                </div>
+
+                <div className="flex mb-3">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <i key={i} className="fas fa-star text-warning-300 text-sm"></i>
+                  ))}
+                </div>
+
+                <p className="text-white/90 text-sm leading-relaxed italic">
+                  "{testimonial.testimonial}"
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12 animate-fade-in">
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-4xl mx-auto border border-white/20">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-warning-300">15,000+</div>
+                  <div className="text-white/80 text-sm">Happy Customers</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-warning-300">99.8%</div>
+                  <div className="text-white/80 text-sm">Delivery Success</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-warning-300">500+</div>
+                  <div className="text-white/80 text-sm">Cities Covered</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-warning-300">4.9/5</div>
+                  <div className="text-white/80 text-sm">Customer Rating</div>
+                </div>
               </div>
             </div>
           </div>
@@ -442,6 +555,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* AI Chatbot - Available for all visitors */}
+      <AIChatbot />
     </div>
   );
 };

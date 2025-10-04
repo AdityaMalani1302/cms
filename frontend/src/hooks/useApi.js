@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { showToast } from '../utils/toastUtils';
 
 // Base API configuration
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -27,8 +27,8 @@ const generateRequestKey = (config) => {
 // Enhanced request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token automatically
-        const token = sessionStorage.getItem('adminToken') ||
+    // Add auth token automatically - consistent with AuthContext
+    const token = sessionStorage.getItem('adminToken') ||
       sessionStorage.getItem('customerToken') ||
       sessionStorage.getItem('agentToken') ||
       sessionStorage.getItem('deliveryAgentToken');
@@ -121,28 +121,11 @@ apiClient.interceptors.response.use(
       });
     }
 
-    // Handle authentication errors
+    // Handle authentication errors - Let AuthContext handle 401s
     if (response?.status === 401) {
       console.warn('Authentication failed:', response?.data?.message);
-      
-      // Clear tokens on 401 for protected routes
-      if (config?.url?.includes('/admin/') || 
-          config?.url?.includes('/customer/') || 
-          config?.url?.includes('/delivery-agent/')) {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('customerToken');
-        localStorage.removeItem('agentToken');
-        localStorage.removeItem('deliveryAgentToken');
-        
-        // Optionally redirect to login
-        if (window.location.pathname.includes('/admin/')) {
-          window.location.href = '/admin';
-        } else if (window.location.pathname.includes('/customer/')) {
-          window.location.href = '/customer/login';
-        } else if (window.location.pathname.includes('/delivery-agent/')) {
-          window.location.href = '/delivery-agent/login';
-        }
-      }
+      // Don't handle 401s here - let AuthContext interceptor handle token refresh and logout
+      // This prevents conflicts between multiple interceptors
     }
 
     // Retry logic for network errors
@@ -197,7 +180,7 @@ const handleApiError = (error, customHandler) => {
   if (customHandler) {
     customHandler(errorMessage, errorCode);
   } else if (!error.config?.__suppressToast) {
-    toast.error(errorMessage);
+    showToast.error(errorMessage);
   }
 
   // Log error in development (but not cancellations)
@@ -371,7 +354,7 @@ export const useCrud = (resource) => {
       // Clear related cache
       cacheUtils.clear(resource);
       
-      toast.success(response.data.message || 'Created successfully');
+      showToast.success(response.data.message || 'Created successfully');
       return response.data;
     } catch (err) {
       // Handle cancellation errors gracefully
@@ -397,7 +380,7 @@ export const useCrud = (resource) => {
   const update = useCallback(async (id, data) => {
     try {
       setLoading(true);
-      const response = await apiClient.put(`/api/admin/${resource}/${id}`, data);
+      const response = await apiClient.put(`/api/admin/${resource}/${id}/status`, data);
       
       // Handle cancelled responses
       if (response.__isDuplicateCancellation || response.__isCancelled) {
@@ -408,7 +391,7 @@ export const useCrud = (resource) => {
       // Clear related cache
       cacheUtils.clear(resource);
       
-      toast.success(response.data.message || 'Updated successfully');
+      showToast.success(response.data.message || 'Updated successfully');
       return response.data;
     } catch (err) {
       // Handle cancellation errors gracefully
@@ -445,7 +428,7 @@ export const useCrud = (resource) => {
       // Clear related cache
       cacheUtils.clear(resource);
       
-      toast.success(response.data.message || 'Deleted successfully');
+      showToast.success(response.data.message || 'Deleted successfully');
       return response.data;
     } catch (err) {
       // Handle cancellation errors gracefully

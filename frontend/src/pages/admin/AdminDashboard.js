@@ -10,39 +10,220 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalCouriers: 0,
     totalComplaints: 0,
+    totalQueries: 0,
     totalBranches: 0,
     todayDeliveries: 0,
     totalAgents: 0,
+    totalUsers: 0,
     unassignedDeliveries: 0
   });
   const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchRecentActivities();
+    
+    // Set up auto-refresh every 30 seconds for real-time data
+    const refreshInterval = setInterval(() => {
+      fetchDashboardStats();
+      fetchRecentActivities();
+    }, 30000);
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const fetchDashboardStats = async () => {
     try {
-      // You can create these endpoints in your backend
-      const [couriersRes, complaintsRes, branchesRes] = await Promise.all([
-        axios.get('/api/courier/stats').catch(() => ({ data: { totalCouriers: 15 } })),
-        axios.get('/api/admin/complaints/stats').catch(() => ({ data: { totalComplaints: 8 } })),
-        axios.get('/api/branches').catch(() => ({ data: { data: Array(5).fill({}) } }))
+      // Get authentication token
+      const token = sessionStorage.getItem('adminToken') || 
+                   sessionStorage.getItem('token') ||
+                   localStorage.getItem('adminToken') || 
+                   localStorage.getItem('token');
+
+      const apiConfig = {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true
+      };
+
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+      // Fetch real stats from backend endpoints
+      const [dashboardStatsRes, usersRes, unassignedRes] = await Promise.all([
+        axios.get(`${apiBase}/api/admin/dashboard/stats`, apiConfig),
+        axios.get(`${apiBase}/api/admin/users/stats`, apiConfig),
+        // Fetch unassigned deliveries count
+        axios.get(`${apiBase}/api/admin/couriers?status=pending pickup&limit=1`, apiConfig).catch(() => ({ data: { pagination: { totalItems: 0 } } }))
       ]);
 
+      const dashboardData = dashboardStatsRes.data.data;
+      const usersData = usersRes.data.data;
+      const unassignedCount = unassignedRes.data.pagination?.totalItems || 0;
+
       setStats({
-        totalCouriers: couriersRes.data.totalCouriers || 15,
-        totalComplaints: complaintsRes.data.totalComplaints || 8,
-        totalBranches: branchesRes.data.data?.length || 5,
-        todayDeliveries: 12,
-        totalAgents: 0,
-        unassignedDeliveries: 0
+        totalCouriers: dashboardData.totalCouriers || 0,
+        totalComplaints: dashboardData.totalComplaints || 0,
+        totalQueries: dashboardData.totalQueries || 0,
+        totalAgents: dashboardData.totalAgents || 0,
+        todayDeliveries: dashboardData.todayDeliveries || 0,
+        totalUsers: usersData.totalUsers || 0,
+        unassignedDeliveries: unassignedCount
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+      // Fallback to zero values if API fails
+      setStats({
+        totalCouriers: 0,
+        totalComplaints: 0,
+        totalQueries: 0,
+        totalAgents: 0,
+        todayDeliveries: 0,
+        totalUsers: 0,
+        unassignedDeliveries: 0
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRecentActivities = async () => {
+    try {
+      const token = sessionStorage.getItem('adminToken') || 
+                   sessionStorage.getItem('token') ||
+                   localStorage.getItem('adminToken') || 
+                   localStorage.getItem('token');
+
+      const apiConfig = {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true
+      };
+
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+      // Fetch recent data from multiple sources
+      const [couriersRes, complaintsRes, usersRes] = await Promise.all([
+        // Recent couriers (last 5)
+        axios.get(`${apiBase}/api/admin/couriers?limit=5&sortBy=createdAt&sortOrder=desc`, apiConfig).catch(() => ({ data: { data: [] } })),
+        // Recent complaints (last 3)
+        axios.get(`${apiBase}/api/admin/complaints?limit=3&sortBy=createdAt&sortOrder=desc`, apiConfig).catch(() => ({ data: { data: [] } })),
+        // Recent users (last 3)
+        axios.get(`${apiBase}/api/admin/users?limit=3&sortBy=createdAt&sortOrder=desc`, apiConfig).catch(() => ({ data: { data: [] } }))
+      ]);
+
+      const activities = [];
+
+      // Process recent couriers
+      if (couriersRes.data.data) {
+        couriersRes.data.data.forEach(courier => {
+          activities.push({
+            id: `courier-${courier._id}`,
+            type: 'courier',
+            icon: 'fas fa-box',
+            color: 'blue',
+            title: 'New courier booking',
+            description: `Tracking #${courier.trackingId || courier.refNumber} created`,
+            timestamp: new Date(courier.createdAt)
+          });
+        });
+      }
+
+      // Process recent complaints
+      if (complaintsRes.data.data) {
+        complaintsRes.data.data.forEach(complaint => {
+          activities.push({
+            id: `complaint-${complaint._id}`,
+            type: 'complaint',
+            icon: complaint.status === 'Resolved' ? 'fas fa-check' : 'fas fa-exclamation-circle',
+            color: complaint.status === 'Resolved' ? 'green' : 'red',
+            title: complaint.status === 'Resolved' ? 'Complaint resolved' : 'New complaint received',
+            description: `Ticket #${complaint.ticketNumber} - ${complaint.category}`,
+            timestamp: new Date(complaint.createdAt)
+          });
+        });
+      }
+
+      // Process recent users
+      if (usersRes.data.data) {
+        usersRes.data.data.forEach(user => {
+          activities.push({
+            id: `user-${user._id}`,
+            type: 'user',
+            icon: 'fas fa-user-plus',
+            color: 'purple',
+            title: 'New user registered',
+            description: `${user.name} joined the platform`,
+            timestamp: new Date(user.createdAt)
+          });
+        });
+      }
+
+      // Sort activities by timestamp (most recent first) and take top 6
+      activities.sort((a, b) => b.timestamp - a.timestamp);
+      setRecentActivities(activities.slice(0, 6));
+
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      setRecentActivities([]);
+    }
+  };
+
+  // Helper function to format time ago
+  const timeAgo = (date) => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Helper function to get color classes
+  const getColorClasses = (color) => {
+    const colorMap = {
+      blue: {
+        bg: 'bg-blue-50 dark:bg-blue-900/20',
+        iconBg: 'bg-blue-500',
+        titleColor: 'text-blue-800 dark:text-blue-300',
+        descColor: 'text-blue-600 dark:text-blue-400',
+        timeColor: 'text-blue-600 dark:text-blue-400'
+      },
+      green: {
+        bg: 'bg-green-50 dark:bg-green-900/20',
+        iconBg: 'bg-green-500',
+        titleColor: 'text-green-800 dark:text-green-300',
+        descColor: 'text-green-600 dark:text-green-400',
+        timeColor: 'text-green-600 dark:text-green-400'
+      },
+      red: {
+        bg: 'bg-red-50 dark:bg-red-900/20',
+        iconBg: 'bg-red-500',
+        titleColor: 'text-red-800 dark:text-red-300',
+        descColor: 'text-red-600 dark:text-red-400',
+        timeColor: 'text-red-600 dark:text-red-400'
+      },
+      purple: {
+        bg: 'bg-purple-50 dark:bg-purple-900/20',
+        iconBg: 'bg-purple-500',
+        titleColor: 'text-purple-800 dark:text-purple-300',
+        descColor: 'text-purple-600 dark:text-purple-400',
+        timeColor: 'text-purple-600 dark:text-purple-400'
+      },
+      orange: {
+        bg: 'bg-orange-50 dark:bg-orange-900/20',
+        iconBg: 'bg-orange-500',
+        titleColor: 'text-orange-800 dark:text-orange-300',
+        descColor: 'text-orange-600 dark:text-orange-400',
+        timeColor: 'text-orange-600 dark:text-orange-400'
+      }
+    };
+    return colorMap[color] || colorMap.blue;
   };
 
   const menuItems = [
@@ -55,12 +236,28 @@ const AdminDashboard = () => {
       count: stats.totalCouriers
     },
     {
+      title: 'User Management',
+      description: 'View and manage customer accounts',
+      icon: 'fas fa-users',
+      color: 'from-green-500 to-green-600',
+      href: '/admin/users',
+      count: stats.totalUsers
+    },
+    {
       title: 'Delivery Agents',
       description: 'Manage delivery agents and performance',
       icon: 'fas fa-motorcycle',
       color: 'from-orange-500 to-orange-600',
       href: '/admin/delivery-agents',
       count: stats.totalAgents || 0
+    },
+    {
+      title: 'Allocate Couriers',
+      description: 'Assign pickup requests to delivery agents',
+      icon: 'fas fa-truck-loading',
+      color: 'from-teal-500 to-teal-600',
+      href: '/admin/allocate-couriers',
+      count: stats.unassignedDeliveries
     },
     {
       title: 'Analytics & Reports',
@@ -77,6 +274,14 @@ const AdminDashboard = () => {
       color: 'from-red-500 to-red-600',
       href: '/admin/complaints',
       count: stats.totalComplaints
+    },
+    {
+      title: 'Customer Queries',
+      description: 'View and reply to customer contact messages',
+      icon: 'fas fa-envelope',
+      color: 'from-purple-500 to-purple-600',
+      href: '/admin/queries',
+      count: stats.totalQueries || 0
     }
   ];
 
@@ -86,32 +291,28 @@ const AdminDashboard = () => {
       value: stats.totalCouriers,
       icon: 'fas fa-box',
       color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-      change: '+12%'
+      bgColor: 'bg-blue-100'
+    },
+    {
+      title: 'Registered Users',
+      value: stats.totalUsers,
+      icon: 'fas fa-users',
+      color: 'text-green-600',
+      bgColor: 'bg-green-100'
     },
     {
       title: 'Active Complaints',
       value: stats.totalComplaints,
       icon: 'fas fa-exclamation-circle',
       color: 'text-red-600',
-      bgColor: 'bg-red-100',
-      change: '-5%'
-    },
-    {
-      title: "Today's Deliveries",
-      value: stats.todayDeliveries,
-      icon: 'fas fa-truck',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-      change: '+8%'
+      bgColor: 'bg-red-100'
     },
     {
       title: 'Delivery Agents',
-      value: stats.totalAgents || 0,
+      value: stats.totalAgents,
       icon: 'fas fa-motorcycle',
       color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
-      change: '+3'
+      bgColor: 'bg-orange-100'
     }
   ];
 
@@ -163,6 +364,19 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  fetchDashboardStats();
+                  fetchRecentActivities();
+                }}
+                leftIcon="fas fa-sync-alt"
+                disabled={loading}
+                className="mr-2"
+              >
+                Refresh
+              </Button>
               <Badge variant="success" size="lg">
                 Online
               </Badge>
@@ -192,15 +406,9 @@ const AdminDashboard = () => {
                   <h3 className="text-2xl font-bold text-secondary-800 dark:text-secondary-200 mb-1">
                     {stat.value}
                   </h3>
-                  <p className="text-sm text-secondary-600 dark:text-secondary-400 mb-2">
+                  <p className="text-sm text-secondary-600 dark:text-secondary-400">
                     {stat.title}
                   </p>
-                  <Badge 
-                    variant={stat.change.startsWith('+') ? 'success' : 'warning'}
-                    size="sm"
-                  >
-                    {stat.change}
-                  </Badge>
                 </Card>
               </motion.div>
             ))}
@@ -255,11 +463,15 @@ const AdminDashboard = () => {
                         // Navigate to implemented pages or show coming soon message
                         if (item.href === '/admin/couriers' || 
                             item.href === '/admin/complaints' || 
+                            item.href === '/admin/queries' ||
                             item.href === '/admin/delivery-agents' ||
-                            item.href === '/admin/reports') {
+                            item.href === '/admin/users' ||
+                            item.href === '/admin/reports' ||
+                            item.href === '/admin/allocate-couriers') {
                           window.location.href = item.href;
                         } else {
-                          alert('Coming Soon!');
+                          // Feature will be available in future updates
+                          console.log('Feature coming soon:', item.title);
                         }
                       }}
                       className="w-full justify-between"
@@ -284,31 +496,46 @@ const AdminDashboard = () => {
           >
             <motion.div variants={itemVariants}>
               <Card className="p-6">
-                <h3 className="text-xl font-bold text-secondary-800 dark:text-secondary-200 mb-4">
-                  Recent Activity
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-secondary-800 dark:text-secondary-200">
+                    Recent Activity
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchRecentActivities}
+                    leftIcon="fas fa-sync-alt"
+                    disabled={loading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
                 <div className="space-y-4">
-                  <div className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                    <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center mr-4">
-                      <i className="fas fa-plus text-white"></i>
+                  {recentActivities.length > 0 ? (
+                    recentActivities.map((activity) => {
+                      const colors = getColorClasses(activity.color);
+                      return (
+                        <div key={activity.id} className={`flex items-center p-4 ${colors.bg} rounded-xl`}>
+                          <div className={`w-10 h-10 ${colors.iconBg} rounded-xl flex items-center justify-center mr-4`}>
+                            <i className={`${activity.icon} text-white`}></i>
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-semibold ${colors.titleColor}`}>{activity.title}</p>
+                            <p className={`text-sm ${colors.descColor}`}>{activity.description}</p>
+                          </div>
+                          <div className={`ml-auto text-sm ${colors.timeColor}`}>
+                            {timeAgo(activity.timestamp)}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-secondary-500 dark:text-secondary-400">
+                      <i className="fas fa-clock text-3xl mb-3"></i>
+                      <p>No recent activity to display</p>
+                      <p className="text-sm">Activities will appear here as they happen</p>
                     </div>
-                    <div>
-                      <p className="font-semibold text-blue-800 dark:text-blue-300">New courier added</p>
-                      <p className="text-sm text-blue-600 dark:text-blue-400">Tracking #997614830 created</p>
-                    </div>
-                    <div className="ml-auto text-sm text-blue-600 dark:text-blue-400">2 hours ago</div>
-                  </div>
-                  
-                  <div className="flex items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center mr-4">
-                      <i className="fas fa-check text-white"></i>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-green-800 dark:text-green-300">Complaint resolved</p>
-                      <p className="text-sm text-green-600 dark:text-green-400">Ticket #12345 closed successfully</p>
-                    </div>
-                    <div className="ml-auto text-sm text-green-600 dark:text-green-400">4 hours ago</div>
-                  </div>
+                  )}
                 </div>
               </Card>
             </motion.div>

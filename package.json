@@ -5,45 +5,22 @@
   "main": "server.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "dev-full": "concurrently \"npm run server\" \"npm run client\"",
-    "start-all": "concurrently \"npm run server\" \"npm run client\"",
-    "start-clean": "npm run kill-ports && npm run start-all",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
-    "client-no-browser": "cd frontend && cross-env BROWSER=none npm start",
     "build": "cd frontend && npm run build",
     "install-server": "cd backend && npm install",
-    "install-client": "cd frontend && npm install",
+    "install-client": "cd frontend && npm install", 
     "install-all": "npm run install-server && npm run install-client",
     "kill-ports": "npx kill-port 3000 5000 || echo 'Ports cleaned'",
-    "health-check": "node scripts/health-check.js",
-    "start": "echo '🚀 Starting CMS Application...' && npm run start:frontend & npm run start:backend",
-    "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && npm run dev",
-    
-    "check-db": "cd backend && node scripts/checkDB.js",
-    "optimize": "npm run init-db && echo Optimization complete! Your CMS is now optimized for performance and security.",
+    "start": "echo '🚀 Starting CMS Application...' && npm run dev",
+    "setup": "npm run install-all && npm run init-db && echo Setup complete! Run 'npm run dev' to start all services.",
     "init-db": "cd backend && node scripts/initDB.js",
-    "setup": "npm run install-all && npm run init-db && echo Setup complete! Run 'npm run dev' to start the application.",
-    "production-build": "npm run install-all && cd frontend && npm run build",
-    "test-system": "npm run check-db && curl -s http://localhost:5000/api/health || echo 'System check complete'"
+    "check-db": "cd backend && node scripts/checkDB.js"
   },
-  "keywords": [
-    "courier",
-    "management",
-    "mern",
-    "tracking",
-    "optimized",
-    "performance"
-  ],
   "author": "Developer",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^24.0.7",
     "concurrently": "^7.6.0",
-    "cross-env": "^7.0.3",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-you-might-not-need-an-effect": "^0.0.45",
     "kill-port": "^2.0.1"
   },
   "dependencies": {

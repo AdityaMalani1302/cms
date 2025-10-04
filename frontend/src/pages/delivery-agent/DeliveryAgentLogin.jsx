@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import axios from 'axios';
+import { showToast } from '../../utils/toastUtils';
 import { useAuth } from '../../context/AuthContext';
 import { validators } from '../../utils/validators';
 import { PasswordInput } from '../../components/ui';
 
 const DeliveryAgentLogin = () => {
   const navigate = useNavigate();
-  const { refreshAuth } = useAuth();
+  const { deliveryAgentLogin } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -17,7 +16,6 @@ const DeliveryAgentLogin = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Validation function for individual fields
   const validateField = (fieldName, value) => {
@@ -88,49 +86,24 @@ const DeliveryAgentLogin = () => {
     
     // Validate all fields before submission
     if (!validateForm()) {
-      toast.error('Please enter valid credentials');
+      showToast.error('Please enter valid credentials');
       return;
     }
     
     setLoading(true);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/delivery-agent/login`, formData);
+      const result = await deliveryAgentLogin(formData.email, formData.password);
       
-      if (response.data.success) {
-        // Store token and agent info using consistent naming
-        sessionStorage.setItem('agentToken', response.data.token);
-        const userData = {
-          ...response.data.agent,
-          userType: 'deliveryAgent'
-        };
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        console.log('Login successful, stored data:', {
-          token: response.data.token,
-          userData: userData
-        });
-        
-        // Set axios authorization header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        
-        // Refresh auth context to update user state
-        refreshAuth();
-        
-        toast.success('Login successful!');
-        
-        // Use setTimeout to ensure navigation happens after state updates
-        setTimeout(() => {
-          console.log('Attempting to navigate to dashboard...');
-          console.log('Current tokens:', {
-            agentToken: sessionStorage.getItem('agentToken'),
-            user: localStorage.getItem('user')
-          });
-          navigate('/delivery-agent/dashboard');
-        }, 100);
+      if (result.success) {
+        showToast.success('Login successful!');
+        console.log('Login successful, navigating to dashboard...');
+        navigate('/delivery-agent/dashboard');
+      } else {
+        showToast.error(result.message || 'Login failed. Please try again.');
       }
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed. Please try again.';
-      toast.error(message);
+      const message = error?.message || 'Login failed. Please try again.';
+      showToast.error(message);
     } finally {
       setLoading(false);
     }
@@ -155,31 +128,32 @@ const DeliveryAgentLogin = () => {
               Delivery Agent Portal
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Sign in to manage your deliveries
+              Sign in with your email and password provided by admin
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Agent ID Field */}
+            {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Agent ID or Email
+                Email Address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="fas fa-user text-gray-400"></i>
+                  <i className="fas fa-envelope text-gray-400"></i>
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   id="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter your Agent ID or Email"
+                  placeholder="Enter your email address"
                   autoComplete="username"
+                  required
                 />
               </div>
               {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
@@ -204,25 +178,27 @@ const DeliveryAgentLogin = () => {
             </div>
 
             {/* Submit Button */}
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <i className="fas fa-sign-in-alt mr-2"></i>
-                  Sign In
-                </div>
-              )}
-            </motion.button>
+            <div className="flex justify-center">
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex justify-center py-3 px-8 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[280px]"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <i className="fas fa-sign-in-alt mr-2"></i>
+                    Sign In
+                  </div>
+                )}
+              </motion.button>
+            </div>
           </form>
 
           {/* Help Section */}

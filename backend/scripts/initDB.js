@@ -4,9 +4,9 @@ require('dotenv').config({ path: '../config.env' });
 // Import all models
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const Review = require('../models/Review');
+// Review model removed
 const SupportTicket = require('../models/SupportTicket');
-const Notification = require('../models/Notification');
+// Notification model removed
 const Admin = require('../models/Admin');
 const Courier = require('../models/Courier');
 const Complaint = require('../models/Complaint');
@@ -28,9 +28,7 @@ const initializeDatabase = async () => {
     const models = [
       { model: User, name: 'Users' },
       { model: Booking, name: 'Bookings' },
-      { model: Review, name: 'Reviews' },
       { model: SupportTicket, name: 'Support Tickets' },
-      { model: Notification, name: 'Notifications' },
       { model: Admin, name: 'Admins' },
       { model: Courier, name: 'Couriers' },
       { model: Complaint, name: 'Complaints' },
@@ -130,15 +128,7 @@ const initializeDatabase = async () => {
       console.log('ℹ️  Delivery Agent indexes already exist or creation failed:', error.message);
     }
 
-    // Notification indexes for user queries
-    try {
-      await Notification.collection.createIndex({ userId: 1 }, { background: true });
-      await Notification.collection.createIndex({ isRead: 1 }, { background: true });
-      await Notification.collection.createIndex({ createdAt: -1 }, { background: true });
-      console.log('✅ Notification indexes created');
-    } catch (error) {
-      console.log('ℹ️  Notification indexes already exist or creation failed:', error.message);
-    }
+    // Notification system removed
 
     // Support Ticket indexes
     try {
@@ -198,8 +188,8 @@ const initializeDatabase = async () => {
       const defaultAdmin = new Admin({
         adminName: 'System Administrator',
         adminUsername: 'admin',
-        adminEmail: 'admin@cms.com',
-        adminPassword: 'Admin@123!', // This will be hashed by the pre-save hook
+        adminEmail: 'cmsad12@gmail.com',
+        adminPassword: 'Cms_admin@12', // This will be hashed by the pre-save hook
         phone: '0000000000',
         department: 'Administration',
         role: 'Super Admin',
@@ -209,8 +199,8 @@ const initializeDatabase = async () => {
       console.log('✅ Default admin created');
       console.log('📋 Login credentials:');
       console.log('   Username: admin');
-      console.log('   Password: Admin@123!');
-      console.log('   Email: admin@cms.com');
+      console.log('   Password: Cms_admin@12');
+      console.log('   Email: cmsad12@gmai.com');
     } else {
       console.log('ℹ️  Admin already exists, skipping creation');
     }

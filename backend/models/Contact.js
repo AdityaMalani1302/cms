@@ -29,6 +29,13 @@ const contactSchema = new mongoose.Schema({
     type: Number,
     enum: [0, 1],
     default: 0
+  },
+  reply: {
+    type: String,
+    trim: true
+  },
+  repliedAt: {
+    type: Date
   }
 }, {
   timestamps: true

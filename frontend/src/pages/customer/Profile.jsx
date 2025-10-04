@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import axios from 'axios';
 import { PasswordInput } from '../../components/ui';
 
 const Profile = () => {
-  const { user, updateUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -76,17 +76,31 @@ const Profile = () => {
     setLoading(true);
 
     try {
-      const response = await axios.put('/api/users/profile', formData);
+      const response = await axios.put('/api/users/update', formData);
       
       if (response.data.success) {
-        toast.success('Profile updated successfully!');
-        updateUser(response.data.user);
+        showToast.success('Profile updated successfully!');
+        // Update sessionStorage with new user data
+        const updatedUser = { ...user, ...response.data.user };
+        sessionStorage.setItem('user', JSON.stringify(updatedUser));
+        // Update local form data to reflect the changes
+        setFormData({
+          name: updatedUser.name || '',
+          email: updatedUser.email || '',
+          phoneNumber: updatedUser.phoneNumber || '',
+          address: {
+            street: updatedUser.address?.street || '',
+            city: updatedUser.address?.city || '',
+            state: updatedUser.address?.state || '',
+            zipCode: updatedUser.address?.zipCode || ''
+          }
+        });
       } else {
-        toast.error(response.data.message || 'Failed to update profile');
+        showToast.error(response.data.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      showToast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -96,12 +110,12 @@ const Profile = () => {
     e.preventDefault();
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
+      showToast.error('New passwords do not match');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters long');
+      showToast.error('New password must be at least 6 characters long');
       return;
     }
 
@@ -114,18 +128,18 @@ const Profile = () => {
       });
       
       if (response.data.success) {
-        toast.success('Password changed successfully!');
+        showToast.success('Password changed successfully!');
         setPasswordData({
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
         });
       } else {
-        toast.error(response.data.message || 'Failed to change password');
+        showToast.error(response.data.message || 'Failed to change password');
       }
     } catch (error) {
       console.error('Password change error:', error);
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      showToast.error(error.response?.data?.message || 'Failed to change password');
     } finally {
       setLoading(false);
     }

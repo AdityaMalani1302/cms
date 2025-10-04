@@ -58,6 +58,12 @@ const Header = () => {
   // Get navigation items based on authentication status
   const getNavItems = () => {
     const baseItems = navItems;
+    
+    // Hide public navigation items for admin and delivery agent users
+    if (isAuthenticated() && (user?.userType === 'admin' || user?.userType === 'delivery_agent')) {
+      return []; // Return empty array to hide Home, About Us, Branches
+    }
+    
     if (isAuthenticated() && user?.userType === 'customer') {
       return [...baseItems, ...customerNavItems];
     }
@@ -97,7 +103,14 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
+          <Link 
+            to={
+              isAuthenticated() && user?.userType === 'admin' ? '/admin/dashboard' :
+              isAuthenticated() && user?.userType === 'delivery_agent' ? '/delivery-agent/dashboard' :
+              '/'
+            } 
+            className="flex items-center space-x-3 group"
+          >
             <motion.div 
               className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300"
               whileHover={{ scale: 1.05, rotate: 5 }}
@@ -194,7 +207,7 @@ const Header = () => {
                   <Link
                     to={
                       user?.userType === 'admin' ? '/admin/dashboard' : 
-                      user?.userType === 'deliveryAgent' ? '/delivery-agent/dashboard' :
+                      user?.userType === 'delivery_agent' ? '/delivery-agent/dashboard' :
                       '/customer/dashboard'
                     }
                     className="px-4 py-2 rounded-lg text-secondary-700 dark:text-secondary-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-secondary-800 transition-all duration-200 font-medium flex items-center space-x-2"
@@ -217,7 +230,7 @@ const Header = () => {
                       </span>
                       <i className="fas fa-chevron-right text-xs text-secondary-400 group-hover:text-primary-600 dark:group-hover:text-primary-400 hidden lg:inline"></i>
                     </Link>
-                  ) : user?.userType === 'deliveryAgent' ? (
+                  ) : user?.userType === 'delivery_agent' ? (
                     <Link
                       to="/delivery-agent/profile"
                       className="flex items-center space-x-2 px-3 py-2 bg-secondary-100 dark:bg-secondary-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-all duration-200 group"
@@ -368,7 +381,7 @@ const Header = () => {
                         <Link
                           to={
                             user?.userType === 'admin' ? '/admin/dashboard' : 
-                            user?.userType === 'deliveryAgent' ? '/delivery-agent/dashboard' :
+                            user?.userType === 'delivery_agent' ? '/delivery-agent/dashboard' :
                             '/customer/dashboard'
                           }
                           className="flex items-center space-x-3 px-4 py-3 rounded-xl text-secondary-700 dark:text-secondary-300 hover:bg-secondary-50 dark:hover:bg-secondary-800 font-medium transition-all duration-200"
@@ -388,7 +401,7 @@ const Header = () => {
                             <span>My Profile</span>
                           </Link>
                         </motion.div>
-                      ) : user?.userType === 'deliveryAgent' ? (
+                      ) : user?.userType === 'delivery_agent' ? (
                         <motion.div variants={mobileItemVariants}>
                           <Link
                             to="/delivery-agent/profile"

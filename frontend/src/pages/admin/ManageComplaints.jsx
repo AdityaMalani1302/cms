@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, Button, Input, LoadingSpinner, Alert, Badge, Modal } from '../../components/ui';
+import { showToast } from '../../utils/toastUtils';
 import axios from 'axios';
 
 const ManageComplaints = () => {
@@ -36,9 +37,9 @@ const ManageComplaints = () => {
     } catch (error) {
       console.error('Error fetching complaints:', error);
       if (error.response?.status === 401) {
-        setAlert({ type: 'error', message: 'Authentication failed. Please login again.' });
+        showToast.error('Authentication failed. Please login again.');
       } else {
-        setAlert({ type: 'error', message: 'Failed to fetch complaints' });
+        showToast.error('Failed to fetch complaints');
       }
     } finally {
       setLoading(false);
@@ -85,17 +86,17 @@ const ManageComplaints = () => {
       });
 
       if (response.data.success) {
-        setAlert({ type: 'success', message: 'Status updated successfully' });
+        showToast.success('Status updated successfully');
         fetchComplaints(); // Refresh the list
       }
     } catch (error) {
-      setAlert({ type: 'error', message: 'Failed to update status' });
+      showToast.error('Failed to update status');
     }
   };
 
   const handleSubmitResponse = async () => {
     if (!responseText.trim()) {
-      setAlert({ type: 'error', message: 'Please enter a response' });
+      showToast.error('Please enter a response');
       return;
     }
 
@@ -103,22 +104,34 @@ const ManageComplaints = () => {
     try {
       const token = sessionStorage.getItem('adminToken');
       const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await axios.put(`${baseURL}/api/admin/complaints/${selectedComplaint._id}`, {
-        remark: responseText,
-        status: 'In Progress',
-        updationDate: new Date()
+      
+      console.log('Sending response for complaint:', selectedComplaint._id);
+      console.log('Response text:', responseText);
+      
+      const response = await axios.put(`${baseURL}/api/admin/complaints/${selectedComplaint._id}/respond`, {
+        responseText: responseText,
+        status: 'In Progress'
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
+      console.log('Response received:', response.data);
+
       if (response.data.success) {
-        setAlert({ type: 'success', message: 'Response sent successfully' });
+        showToast.success('Response sent successfully! The customer will be notified.');
         setShowResponseModal(false);
         setSelectedComplaint(null);
+        setResponseText('');
         fetchComplaints(); // Refresh the list
+      } else {
+        showToast.error(response.data.message || 'Failed to send response');
       }
     } catch (error) {
-      setAlert({ type: 'error', message: 'Failed to send response' });
+      console.error('Error sending response:', error);
+      showToast.error(error.response?.data?.message || 'Failed to send response. Please try again.');
     } finally {
       setResponseLoading(false);
     }

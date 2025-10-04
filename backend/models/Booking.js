@@ -100,39 +100,25 @@ const bookingSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  paymentDetails: {
-    amount: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    paymentMethod: {
-      type: String,
-      enum: ['online', 'cod', 'wallet'],
-      required: true,
-      default: 'cod'
-    },
-    paymentStatus: {
-      type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending'
-    },
-    razorpayOrderId: {
-      type: String
-    },
-    paymentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Payment'
-    },
-    invoiceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Invoice'
-    }
-  },
+  // Payment system removed - simplified booking
   status: {
     type: String,
-    enum: ['Pending Payment', 'Payment Failed', 'Pending Pickup', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'Cancelled'],
-    default: 'Pending Payment'
+    enum: [
+      'pending pickup',
+      'picked up',
+      'shipped', 
+      'in transit',
+      'arrived at destination',
+      'out for delivery',
+      'delivered',
+      'pickup failed',
+      'delivery failed'
+    ],
+    default: 'pending pickup'
+  },
+  assignedAgent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DeliveryAgent'
   },
   description: {
     type: String,

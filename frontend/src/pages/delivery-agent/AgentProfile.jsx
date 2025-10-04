@@ -7,17 +7,76 @@ import axios from 'axios';
 
 const AgentProfile = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [agentInfo, setAgentInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // State for branch name
+  const [branchName, setBranchName] = useState('Not Assigned');
+
+  // Helper function to fetch branch name by ID
+  const fetchBranchName = async (branchId) => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/branches/${branchId}`);
+      if (response.data.success) {
+        return response.data.data.branchName;
+      }
+    } catch (error) {
+      console.error('Error fetching branch name:', error);
+    }
+    return branchId; // Fallback to ID if fetch fails
+  };
+
+  // Helper function to format branch name
+  const formatBranchName = async (branch) => {
+    if (!branch) return 'Not Assigned';
+    
+    // Check if it looks like an ObjectId (24 character hex string)
+    if (typeof branch === 'string' && branch.match(/^[a-f\d]{24}$/i)) {
+      const name = await fetchBranchName(branch);
+      setBranchName(name);
+      return name;
+    }
+    
+    setBranchName(branch);
+    return branch;
+  };
+
   useEffect(() => {
-    fetchAgentProfile();
-  }, []);
+    // If user data is available from AuthContext, use it directly
+    if (user && user.userType === 'delivery_agent') {
+      const loadAgentInfo = async () => {
+        const branchDisplay = await formatBranchName(user.assignedBranch || user.branch);
+        setAgentInfo({
+          name: user.name || user.agentName || 'Delivery Agent',
+          agentId: user.agentId || user.id,
+          email: user.email || user.agentEmail,
+          phoneNumber: user.phoneNumber || user.phone,
+          assignedBranch: branchDisplay,
+          vehicleType: user.vehicleType,
+          isAvailable: user.isAvailable !== undefined ? user.isAvailable : false,
+          isActive: user.status === 'active' || user.isActive !== false,
+          joinDate: user.joinDate || user.createdAt,
+          stats: {
+            totalDeliveries: 0,
+            successfulDeliveries: 0,
+            pendingDeliveries: 0,
+            successRate: 0
+          }
+        });
+        setLoading(false);
+      };
+      loadAgentInfo();
+    } else {
+      // Fallback to API call if user data not available
+      fetchAgentProfile();
+    }
+  }, [user]);
 
   const fetchAgentProfile = async () => {
     try {
-      const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
+      // Use sessionStorage instead of localStorage to match AuthContext
+      const token = sessionStorage.getItem('agentToken') || sessionStorage.getItem('deliveryAgentToken');
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/delivery-agent/profile`,
         {
@@ -33,27 +92,32 @@ const AgentProfile = () => {
       
       // If profile endpoint doesn't exist, use stored user data as fallback
       if (error.response?.status === 404) {
-        const storedUser = localStorage.getItem('user');
+        // Check sessionStorage first, then localStorage as fallback
+        const storedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           console.log('Using stored user data:', userData); // Debug log
-          setAgentInfo({
-            name: userData.name || userData.agentName || 'Delivery Agent',
-            agentId: userData.agentId || userData.id,
-            email: userData.email || userData.agentEmail,
-            phoneNumber: userData.phoneNumber || userData.phone,
-            assignedBranch: userData.assignedBranch || userData.branch,
-            vehicleType: userData.vehicleType,
-            isAvailable: userData.isAvailable !== undefined ? userData.isAvailable : false,
-            isActive: userData.status === 'active' || userData.isActive !== false,
-            joinDate: userData.joinDate || userData.createdAt,
-            stats: {
-              totalDeliveries: 0,
-              successfulDeliveries: 0,
-              pendingDeliveries: 0,
-              successRate: 0
-            }
-          });
+          const loadStoredAgentInfo = async () => {
+            const branchDisplay = await formatBranchName(userData.assignedBranch || userData.branch);
+            setAgentInfo({
+              name: userData.name || userData.agentName || 'Delivery Agent',
+              agentId: userData.agentId || userData.id,
+              email: userData.email || userData.agentEmail,
+              phoneNumber: userData.phoneNumber || userData.phone,
+              assignedBranch: branchDisplay,
+              vehicleType: userData.vehicleType,
+              isAvailable: userData.isAvailable !== undefined ? userData.isAvailable : false,
+              isActive: userData.status === 'active' || userData.isActive !== false,
+              joinDate: userData.joinDate || userData.createdAt,
+              stats: {
+                totalDeliveries: 0,
+                successfulDeliveries: 0,
+                pendingDeliveries: 0,
+                successRate: 0
+              }
+            });
+          };
+          loadStoredAgentInfo();
           return;
         }
       }
@@ -166,7 +230,7 @@ const AgentProfile = () => {
                     Assigned Branch
                   </label>
                   <p className="text-gray-900 dark:text-white font-medium">
-                    {agentInfo?.assignedBranch || 'N/A'}
+                    {branchName}
                   </p>
                 </div>
 

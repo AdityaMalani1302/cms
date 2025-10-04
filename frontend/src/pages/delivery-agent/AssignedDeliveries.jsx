@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import axios from 'axios';
+import Modal from '../../components/ui/Modal';
 
 const AssignedDeliveries = () => {
   const navigate = useNavigate();
@@ -11,26 +12,39 @@ const AssignedDeliveries = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
 
   const statusFilters = [
     { value: 'all', label: 'All', count: 0 },
-    { value: 'Intransit', label: 'In Transit', count: 0 },
-    { value: 'Out for Delivery', label: 'Out for Delivery', count: 0 },
-    { value: 'Pickup', label: 'Pickup', count: 0 }
+    { value: 'pending pickup', label: 'Pending Pickup', count: 0 },
+    { value: 'picked up', label: 'Picked Up', count: 0 }
   ];
 
   useEffect(() => {
-    const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
+    // Check sessionStorage first, then localStorage for backward compatibility
+    const token = sessionStorage.getItem('agentToken') || 
+                 sessionStorage.getItem('deliveryAgentToken') ||
+                 localStorage.getItem('agentToken') || 
+                 localStorage.getItem('deliveryAgentToken');
+    
     if (!token) {
+      console.log('❌ No token found in AssignedDeliveries, redirecting to login');
       navigate('/delivery-agent/login');
       return;
     }
+    
+    console.log('✅ Token found in AssignedDeliveries, fetching deliveries');
     fetchDeliveries();
   }, [navigate, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDeliveries = async () => {
     try {
-      const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
+      // Check sessionStorage first, then localStorage for backward compatibility
+      const token = sessionStorage.getItem('agentToken') || 
+                   sessionStorage.getItem('deliveryAgentToken') ||
+                   localStorage.getItem('agentToken') || 
+                   localStorage.getItem('deliveryAgentToken');
       const params = new URLSearchParams();
       if (filter !== 'all') params.append('status', filter);
       
@@ -49,7 +63,7 @@ const AssignedDeliveries = () => {
       if (error.response?.status === 401) {
         navigate('/delivery-agent/login');
       } else {
-        toast.error('Failed to load deliveries');
+        showToast.error('Failed to load deliveries');
       }
     } finally {
       setLoading(false);
@@ -62,53 +76,48 @@ const AssignedDeliveries = () => {
     fetchDeliveries();
   };
 
-  const handleStatusUpdate = async (deliveryId, newStatus, additionalData = {}) => {
+  
+
+  const handlePickup = async (deliveryId) => {
     try {
-      const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
-      const endpoint = newStatus === 'Delivered' 
-        ? `/api/delivery-agent/delivery/${deliveryId}`
-        : `/api/delivery-agent/status/${deliveryId}`;
+      const token = sessionStorage.getItem('agentToken') || 
+                   sessionStorage.getItem('deliveryAgentToken') ||
+                   localStorage.getItem('agentToken') || 
+                   localStorage.getItem('deliveryAgentToken');
       
       const response = await axios.put(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${endpoint}`,
-        {
-          status: newStatus,
-          remark: additionalData.remark || `Status updated to ${newStatus}`,
-          ...additionalData
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/delivery-agent/update-status/${deliveryId}`,
+        { status: 'picked up' },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data.success) {
-        toast.success(`Package ${newStatus.toLowerCase()} successfully!`);
-        fetchDeliveries();
+        showToast.success('Pickup confirmed successfully!');
+        fetchDeliveries(); // Refresh the list
+      } else {
+        showToast.error(response.data.message || 'Failed to confirm pickup');
       }
     } catch (error) {
-      toast.error('Failed to update status');
+      console.error('Error confirming pickup:', error);
+      showToast.error('An error occurred while confirming pickup.');
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Delivered':
+      case 'picked up':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'Out for Delivery':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'Intransit':
+      case 'pending pickup':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'Pickup':
+      case 'in transit':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'out for delivery':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'delivered':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
-  };
-
-  const getPriorityColor = (attempts) => {
-    if (attempts >= 2) return 'text-red-500';
-    if (attempts >= 1) return 'text-orange-500';
-    return 'text-green-500';
   };
 
   const filteredDeliveries = deliveries.filter(delivery => {
@@ -123,7 +132,7 @@ const AssignedDeliveries = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading deliveries...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading pickups...</p>
         </div>
       </div>
     );
@@ -143,7 +152,7 @@ const AssignedDeliveries = () => {
                 <i className="fas fa-arrow-left"></i>
               </button>
               <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-                My Deliveries
+                My Pickup Assignments
               </h1>
             </div>
             <button
@@ -188,7 +197,7 @@ const AssignedDeliveries = () => {
         </div>
       </div>
 
-      {/* Deliveries List */}
+      {/* Pickups List */}
       <div className="p-4">
         {filteredDeliveries.length > 0 ? (
           <div className="space-y-4">
@@ -200,21 +209,18 @@ const AssignedDeliveries = () => {
                 transition={{ delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
               >
-                {/* Delivery Header */}
+                {/* Pickup Header */}
                 <div className="p-4 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <span className="text-lg font-semibold text-gray-800 dark:text-white">
                         #{delivery.refNumber}
                       </span>
-                      {delivery.deliveryAttempts > 0 && (
-                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(delivery.deliveryAttempts)} bg-gray-100 dark:bg-gray-700`}>
-                          Attempt {delivery.deliveryAttempts + 1}
-                        </span>
-                      )}
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(delivery.status)}`}>
-                      {delivery.status}
+                      {delivery.status === 'picked up' ? 'Picked Up' : 
+                       delivery.status === 'pending pickup' ? 'Pending Pickup' :
+                       delivery.status.charAt(0).toUpperCase() + delivery.status.slice(1)}
                     </span>
                   </div>
                   
@@ -226,7 +232,7 @@ const AssignedDeliveries = () => {
                   )}
                 </div>
 
-                {/* Delivery Details */}
+                {/* Pickup Details */}
                 <div className="p-4">
                   {/* Pickup Information */}
                   <div className="mb-4">
@@ -244,15 +250,6 @@ const AssignedDeliveries = () => {
                           <i className="fas fa-phone mr-1"></i>
                           {delivery.senderContactNumber}
                         </a>
-                        {delivery.senderEmail && (
-                          <a
-                            href={`mailto:${delivery.senderEmail}`}
-                            className="flex items-center text-orange-600 dark:text-orange-400 text-sm hover:text-orange-800 dark:hover:text-orange-200"
-                          >
-                            <i className="fas fa-envelope mr-1"></i>
-                            Email
-                          </a>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -273,15 +270,6 @@ const AssignedDeliveries = () => {
                           <i className="fas fa-phone mr-1"></i>
                           {delivery.recipientContactNumber}
                         </a>
-                        {delivery.recipientEmail && (
-                          <a
-                            href={`mailto:${delivery.recipientEmail}`}
-                            className="flex items-center text-green-600 dark:text-green-400 text-sm hover:text-green-800 dark:hover:text-green-200"
-                          >
-                            <i className="fas fa-envelope mr-1"></i>
-                            Email
-                          </a>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -304,76 +292,26 @@ const AssignedDeliveries = () => {
                           {delivery.packageType || 'Standard'}
                         </span>
                       </div>
-                      {delivery.specialInstructions && (
-                        <div className="col-span-2">
-                          <span className="text-gray-600 dark:text-gray-400">Instructions:</span>
-                          <p className="text-gray-800 dark:text-white mt-1">
-                            {delivery.specialInstructions}
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex space-x-2">
-                    {delivery.status === 'Pickup' && (
+                    {delivery.status === 'pending pickup' ? (
                       <button
-                        onClick={() => handleStatusUpdate(delivery._id, 'Intransit')}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => handlePickup(delivery._id)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
                       >
                         <i className="fas fa-check mr-2"></i>
-                        Collected
+                        Confirm Pickup
                       </button>
+                    ) : (
+                      <div className="w-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 py-3 px-4 rounded-lg font-medium flex items-center justify-center">
+                        <i className="fas fa-check-circle mr-2"></i>
+                        Package Picked Up
+                      </div>
                     )}
-
-                    {delivery.status === 'Intransit' && (
-                      <button
-                        onClick={() => handleStatusUpdate(delivery._id, 'Out for Delivery')}
-                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        <i className="fas fa-truck mr-2"></i>
-                        Out for Delivery
-                      </button>
-                    )}
-
-                    {delivery.status === 'Out for Delivery' && (
-                      <button
-                        onClick={() => navigate(`/delivery-agent/deliver/${delivery._id}`)}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        <i className="fas fa-hand-holding-heart mr-2"></i>
-                        Deliver Package
-                      </button>
-                    )}
-
-                    {/* QR Code Scanner */}
-                    <button
-                      onClick={() => navigate(`/delivery-agent/scan?deliveryId=${delivery._id}`)}
-                      className="px-3 py-2 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
-                      title="Scan QR Code"
-                    >
-                      <i className="fas fa-qrcode"></i>
-                    </button>
-
-                    {/* Navigation */}
-                    <button
-                      onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(delivery.recipientAddress)}`, '_blank')}
-                      className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      title="Navigate"
-                    >
-                      <i className="fas fa-directions"></i>
-                    </button>
                   </div>
-
-                  {/* Report Issue Button */}
-                  <button
-                    onClick={() => navigate(`/delivery-agent/report-issue/${delivery._id}`)}
-                    className="w-full mt-2 py-2 px-4 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900 transition-colors"
-                  >
-                    <i className="fas fa-exclamation-triangle mr-2"></i>
-                    Report Issue
-                  </button>
                 </div>
               </motion.div>
             ))}
@@ -384,12 +322,12 @@ const AssignedDeliveries = () => {
               <i className="fas fa-truck text-gray-400 text-3xl"></i>
             </div>
             <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-              No deliveries found
+              No pickups found
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {filter === 'all' 
-                ? "You don't have any assigned deliveries at the moment."
-                : `No deliveries with status "${filter}" found.`
+                ? "You don't have any assigned pickups at the moment."
+                : `No pickups with status "${filter}" found.`
               }
             </p>
             <button
@@ -408,21 +346,89 @@ const AssignedDeliveries = () => {
         <div className="fixed bottom-4 left-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-400">
-              Total: {filteredDeliveries.length} deliveries
+              Total: {filteredDeliveries.length} pickups
             </span>
             <div className="flex space-x-4">
               <span className="text-yellow-600 dark:text-yellow-400">
-                Pending: {filteredDeliveries.filter(d => d.status !== 'Delivered').length}
+                Pending: {filteredDeliveries.filter(d => d.status === 'pending pickup').length}
               </span>
               <span className="text-green-600 dark:text-green-400">
-                Completed: {filteredDeliveries.filter(d => d.status === 'Delivered').length}
+                Picked Up: {filteredDeliveries.filter(d => d.status === 'picked up').length}
               </span>
             </div>
           </div>
         </div>
       )}
+
+      {isModalOpen && selectedDelivery && (
+        <Modal onClose={() => setIsModalOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <span className="text-lg font-semibold text-gray-800 dark:text-white">
+                    #{selectedDelivery.refNumber}
+                  </span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedDelivery.status)}`}>
+                  {selectedDelivery.status.charAt(0).toUpperCase() + selectedDelivery.status.slice(1)}
+                </span>
+              </div>
+              {selectedDelivery.expectedDeliveryDate && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <i className="fas fa-clock mr-1"></i>
+                  Expected: {new Date(selectedDelivery.expectedDeliveryDate).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+            <div className="p-4">
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-box mr-2 text-orange-500"></i>Pickup From
+                </h4>
+                <div className="bg-orange-50 dark:bg-orange-900 rounded-lg p-3">
+                  <p className="font-medium text-gray-800 dark:text-white">{selectedDelivery.senderName}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedDelivery.senderAddress}</p>
+                  <a href={`tel:${selectedDelivery.senderContactNumber}`} className="flex items-center text-orange-600 dark:text-orange-400 text-sm hover:text-orange-800 dark:hover:text-orange-200 mt-2">
+                    <i className="fas fa-phone mr-1"></i>
+                    {selectedDelivery.senderContactNumber}
+                  </a>
+                </div>
+              </div>
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-map-marker-alt mr-2 text-green-500"></i>Deliver To
+                </h4>
+                <div className="bg-green-50 dark:bg-green-900 rounded-lg p-3">
+                  <p className="font-medium text-gray-800 dark:text-white">{selectedDelivery.recipientName}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedDelivery.recipientAddress}</p>
+                  <a href={`tel:${selectedDelivery.recipientContactNumber}`} className="flex items-center text-green-600 dark:text-green-400 text-sm hover:text-green-800 dark:hover:text-green-200 mt-2">
+                    <i className="fas fa-phone mr-1"></i>
+                    {selectedDelivery.recipientContactNumber}
+                  </a>
+                </div>
+              </div>
+              <div className="mb-4 bg-blue-50 dark:bg-blue-900 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-info-circle mr-2 text-blue-500"></i>Package Details
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Weight:</span>
+                    <span className="font-medium text-gray-800 dark:text-white ml-1">{selectedDelivery.weight || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                    <span className="font-medium text-gray-800 dark:text-white ml-1">{selectedDelivery.packageType || 'Standard'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
 
-export default AssignedDeliveries; 
+export default AssignedDeliveries;

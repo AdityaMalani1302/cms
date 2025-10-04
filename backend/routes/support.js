@@ -1,36 +1,22 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { authenticateUser } = require('../middleware/auth');
+const { validate, validationRules } = require('../middleware/validation');
 const SupportTicket = require('../models/SupportTicket');
 
 const router = express.Router();
-
-// Validation rules
-const validationRules = {
-  createTicket: [
-    body('subject').notEmpty().withMessage('Subject is required'),
-    body('message').notEmpty().withMessage('Message is required'),
-    body('category').optional().isIn(['General', 'Booking Issue', 'Delivery Problem', 'Payment', 'Technical', 'Others']).withMessage('Valid category is required')
-  ],
-  addResponse: [
-    body('message').notEmpty().withMessage('Response message is required')
-  ]
-};
 
 // Apply authentication to all routes
 router.use(authenticateUser);
 
 // Create new support ticket
-router.post('/tickets', validationRules.createTicket, async (req, res) => {
+router.post('/tickets', [
+  ...validationRules.createTicket,
+  validate
+], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
+    console.log('📋 Support ticket creation request:', req.body);
+    console.log('👤 Authenticated user:', req.user);
 
     const { subject, message, category } = req.body;
 
@@ -40,6 +26,8 @@ router.post('/tickets', validationRules.createTicket, async (req, res) => {
       message,
       category: category || 'General'
     }).save();
+    
+    console.log('✅ Support ticket created:', ticket.ticketId);
 
     res.status(201).json({
       success: true,
@@ -55,7 +43,12 @@ router.post('/tickets', validationRules.createTicket, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Support ticket creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -112,16 +105,11 @@ router.get('/tickets/:id', async (req, res) => {
 });
 
 // Add response to support ticket
-router.post('/tickets/:id/responses', validationRules.addResponse, async (req, res) => {
+router.post('/tickets/:id/responses', [
+  ...validationRules.addResponse,
+  validate
+], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
 
     const ticket = await SupportTicket.findOne({
       _id: req.params.id,

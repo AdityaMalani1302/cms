@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -11,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 // Layout components (not lazy loaded as they're needed immediately)
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+
 
 // Loading component for Suspense fallback
 const LoadingFallback = ({ message = "Loading..." }) => (
@@ -58,51 +58,59 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Lazy load components for better performance
-// Public pages
-const Home = React.lazy(() => import('./pages/Home'));
-const AboutUs = React.lazy(() => import('./pages/AboutUs'));
-const TrackParcel = React.lazy(() => import('./pages/TrackParcel'));
-const TrackComplaint = React.lazy(() => import('./pages/TrackComplaint'));
-const RaiseComplaint = React.lazy(() => import('./pages/RaiseComplaint'));
-const Branches = React.lazy(() => import('./pages/Branches'));
+// Optimized lazy loading with route-based code splitting
+// Public pages chunk
+const PublicPages = {
+  Home: React.lazy(() => import('./pages/Home')),
+  AboutUs: React.lazy(() => import('./pages/AboutUs')),
+  TrackComplaint: React.lazy(() => import('./pages/TrackComplaint')),
+  RaiseComplaint: React.lazy(() => import('./pages/RaiseComplaint')),
+  Branches: React.lazy(() => import('./pages/Branches'))
+};
 
-// Authentication pages
-const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
-const GoogleCallback = React.lazy(() => import('./pages/auth/GoogleCallback'));
+// Authentication chunk
+const AuthPages = {
+  AdminLogin: React.lazy(() => import('./pages/admin/AdminLogin')),
+  ForgotPassword: React.lazy(() => import('./pages/auth/ForgotPassword')),
+  AdminRecovery: React.lazy(() => import('./pages/auth/AdminRecovery')),
+  CustomerLogin: React.lazy(() => import('./pages/customer/Login')),
+  CustomerRegister: React.lazy(() => import('./pages/customer/Register')),
+  DeliveryAgentLogin: React.lazy(() => import('./pages/delivery-agent/DeliveryAgentLogin'))
+};
 
-// Admin pages - grouped for better code splitting
-const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
-const AdminProfile = React.lazy(() => import('./pages/admin/AdminProfile'));
-const DeliveryAgentManagement = React.lazy(() => import('./pages/admin/DeliveryAgentManagement'));
-const AssignmentWorkflow = React.lazy(() => import('./pages/admin/AssignmentWorkflow'));
-const ManageCouriers = React.lazy(() => import('./pages/admin/ManageCouriers'));
-const ManageComplaints = React.lazy(() => import('./pages/admin/ManageComplaints'));
-const ManageBranches = React.lazy(() => import('./pages/admin/ManageBranches'));
-const ManageAnalytics = React.lazy(() => import('./pages/admin/ManageAnalytics'));
+// Admin pages chunk - loaded together for admin workflow
+const AdminPages = {
+  Dashboard: React.lazy(() => import('./pages/admin/AdminDashboard')),
+  Profile: React.lazy(() => import('./pages/admin/AdminProfile')),
+  DeliveryAgentManagement: React.lazy(() => import('./pages/admin/DeliveryAgentManagement')),
+  ManageCouriers: React.lazy(() => import('./pages/admin/ManageCouriers')),
+  ManageComplaints: React.lazy(() => import('./pages/admin/ManageComplaints')),
+  ManageQueries: React.lazy(() => import('./pages/admin/ManageQueries')),
+  ManageBranches: React.lazy(() => import('./pages/admin/ManageBranches')),
+  UserManagement: React.lazy(() => import('./pages/admin/UserManagement')),
+  AnalyticsReporting: React.lazy(() => import('./pages/admin/AnalyticsReporting')),
+  AllocateCouriers: React.lazy(() => import('./pages/admin/AllocateCouriers'))
+};
 
-// Customer pages - grouped for better code splitting
-const CustomerLogin = React.lazy(() => import('./pages/customer/Login'));
-const CustomerRegister = React.lazy(() => import('./pages/customer/Register'));
-const CustomerDashboard = React.lazy(() => import('./pages/customer/Dashboard'));
-const BookCourier = React.lazy(() => import('./pages/customer/BookCourier'));
-const BookingHistory = React.lazy(() => import('./pages/customer/BookingHistory'));
-const CustomerTrackParcel = React.lazy(() => import('./pages/customer/TrackParcel'));
-const CustomerTrackComplaint = React.lazy(() => import('./pages/customer/TrackComplaint'));
-const CustomerRaiseComplaint = React.lazy(() => import('./pages/customer/RaiseComplaint'));
-const CustomerSupport = React.lazy(() => import('./pages/customer/Support'));
-const CustomerNotifications = React.lazy(() => import('./pages/customer/Notifications'));
-const CustomerProfile = React.lazy(() => import('./pages/customer/Profile'));
+// Customer pages chunk - loaded together for customer workflow
+const CustomerPages = {
+  Dashboard: React.lazy(() => import('./pages/customer/Dashboard')),
+  BookCourier: React.lazy(() => import('./pages/customer/BookCourier')),
+  BookingHistory: React.lazy(() => import('./pages/customer/BookingHistory')),
+  TrackParcel: React.lazy(() => import('./pages/customer/TrackParcel')),
+  TrackComplaint: React.lazy(() => import('./pages/customer/TrackComplaint')),
+  RaiseComplaint: React.lazy(() => import('./pages/customer/RaiseComplaint')),
+  Support: React.lazy(() => import('./pages/customer/Support')),
+  Notifications: React.lazy(() => import('./pages/customer/Notifications')),
+  Profile: React.lazy(() => import('./pages/customer/Profile'))
+};
 
-// Delivery Agent pages - grouped for better code splitting
-const DeliveryAgentLogin = React.lazy(() => import('./pages/delivery-agent/DeliveryAgentLogin'));
-const DeliveryAgentLoginTest = React.lazy(() => import('./pages/delivery-agent/DeliveryAgentLoginTest'));
-const DeliveryAgentDashboard = React.lazy(() => import('./pages/delivery-agent/DeliveryAgentDashboard'));
-const AssignedDeliveries = React.lazy(() => import('./pages/delivery-agent/AssignedDeliveries'));
-const DeliveryConfirmation = React.lazy(() => import('./pages/delivery-agent/DeliveryConfirmation'));
-const QRScanner = React.lazy(() => import('./pages/delivery-agent/QRScanner'));
-const AgentProfile = React.lazy(() => import('./pages/delivery-agent/AgentProfile'));
-const ReportIssue = React.lazy(() => import('./pages/delivery-agent/ReportIssue'));
+// Delivery Agent pages chunk - loaded together for agent workflow
+const DeliveryAgentPages = {
+  Dashboard: React.lazy(() => import('./pages/delivery-agent/DeliveryAgentDashboard')),
+  AssignedDeliveries: React.lazy(() => import('./pages/delivery-agent/AssignedDeliveries')),
+  Profile: React.lazy(() => import('./pages/delivery-agent/AgentProfile'))
+};
 
 // Route wrapper with enhanced error handling and loading states
 const RouteWrapper = ({ children, loadingMessage }) => (
@@ -114,9 +122,9 @@ const RouteWrapper = ({ children, loadingMessage }) => (
 );
 
 function App() {
+  // App initialization
   return (
     <ErrorBoundary>
-      <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
         <AuthProvider>
         <Router 
           future={{
@@ -131,63 +139,63 @@ function App() {
                 {/* Public Routes */}
                 <Route path="/" element={
                   <RouteWrapper loadingMessage="Loading home page...">
-                    <Home />
+                    <PublicPages.Home />
                   </RouteWrapper>
                 } />
                 <Route path="/about-us" element={
                   <RouteWrapper loadingMessage="Loading about us...">
-                    <AboutUs />
+                    <PublicPages.AboutUs />
                   </RouteWrapper>
                 } />
                 <Route path="/track-parcel" element={
                   <RouteWrapper loadingMessage="Loading parcel tracking...">
-                    <TrackParcel />
+                    <CustomerPages.TrackParcel />
                   </RouteWrapper>
                 } />
                 <Route path="/track-complaint" element={
                   <RouteWrapper loadingMessage="Loading complaint tracking...">
-                    <TrackComplaint />
+                    <PublicPages.TrackComplaint />
                   </RouteWrapper>
                 } />
                 <Route path="/raise-complaint" element={
                   <RouteWrapper loadingMessage="Loading complaint form...">
-                    <RaiseComplaint />
+                    <PublicPages.RaiseComplaint />
                   </RouteWrapper>
                 } />
                 <Route path="/branches" element={
                   <RouteWrapper loadingMessage="Loading branches...">
-                    <Branches />
+                    <PublicPages.Branches />
                   </RouteWrapper>
                 } />
                 
                 {/* Authentication Routes */}
                 <Route path="/admin" element={
                   <RouteWrapper loadingMessage="Loading admin login...">
-                    <AdminLogin />
+                    <AuthPages.AdminLogin />
                   </RouteWrapper>
                 } />
                 
                 {/* Customer Authentication Routes */}
                 <Route path="/customer/login" element={
                   <RouteWrapper loadingMessage="Loading customer login...">
-                    <CustomerLogin />
+                    <AuthPages.CustomerLogin />
                   </RouteWrapper>
                 } />
                 <Route path="/customer/register" element={
                   <RouteWrapper loadingMessage="Loading registration...">
-                    <CustomerRegister />
+                    <AuthPages.CustomerRegister />
                   </RouteWrapper>
                 } />
                 
-                {/* Google OAuth Callback Routes */}
-                <Route path="/auth/google/success" element={
-                  <RouteWrapper loadingMessage="Processing authentication...">
-                    <GoogleCallback />
+                {/* Password Recovery Routes */}
+                <Route path="/forgot-password" element={
+                  <RouteWrapper loadingMessage="Loading password recovery...">
+                    <AuthPages.ForgotPassword />
                   </RouteWrapper>
                 } />
-                <Route path="/auth/google/error" element={
-                  <RouteWrapper loadingMessage="Processing authentication...">
-                    <GoogleCallback />
+                <Route path="/admin/recovery" element={
+                  <RouteWrapper loadingMessage="Loading admin recovery...">
+                    <AuthPages.AdminRecovery />
                   </RouteWrapper>
                 } />
                 
@@ -195,7 +203,7 @@ function App() {
                 <Route path="/admin/dashboard" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading admin dashboard...">
-                      <AdminDashboard />
+                      <AdminPages.Dashboard />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
@@ -203,7 +211,7 @@ function App() {
                 <Route path="/admin/profile" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading admin profile...">
-                      <AdminProfile />
+                      <AdminPages.Profile />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
@@ -212,124 +220,91 @@ function App() {
                 <Route path="/customer/dashboard" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading customer dashboard...">
-                      <CustomerDashboard />
+                      <CustomerPages.Dashboard />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/book-courier" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading booking form...">
-                      <BookCourier />
+                      <CustomerPages.BookCourier />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/booking-history" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading booking history...">
-                      <BookingHistory />
+                      <CustomerPages.BookingHistory />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/track-parcel" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading parcel tracking...">
-                      <CustomerTrackParcel />
+                      <CustomerPages.TrackParcel />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/track-complaint" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading complaint tracking...">
-                      <CustomerTrackComplaint />
+                      <CustomerPages.TrackComplaint />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/raise-complaint" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading complaint form...">
-                      <CustomerRaiseComplaint />
+                      <CustomerPages.RaiseComplaint />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/support" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading support...">
-                      <CustomerSupport />
+                      <CustomerPages.Support />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/notifications" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading notifications...">
-                      <CustomerNotifications />
+                      <CustomerPages.Notifications />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/customer/profile" element={
                   <ProtectedRoute allowedRoles={['customer']}>
                     <RouteWrapper loadingMessage="Loading profile...">
-                      <CustomerProfile />
+                      <CustomerPages.Profile />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 
                 {/* Delivery Agent Routes */}
                 <Route path="/delivery-agent/login" element={
-                  <RouteWrapper loadingMessage="Loading agent login...">
-                    <DeliveryAgentLogin />
-                  </RouteWrapper>
-                } />
-                <Route path="/delivery-agent/login-test" element={
-                  <RouteWrapper loadingMessage="Loading test login...">
-                    <DeliveryAgentLoginTest />
+                  <RouteWrapper loadingMessage="Loading delivery agent login...">
+                    <AuthPages.DeliveryAgentLogin />
                   </RouteWrapper>
                 } />
                 <Route path="/delivery-agent/dashboard" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading agent dashboard...">
-                      <DeliveryAgentDashboard />
+                  <ProtectedRoute allowedRoles={['delivery_agent']}>
+                    <RouteWrapper loadingMessage="Loading delivery agent dashboard...">
+                      <DeliveryAgentPages.Dashboard />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/delivery-agent/assignments" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading assignments...">
-                      <AssignedDeliveries />
-                    </RouteWrapper>
-                  </ProtectedRoute>
-                } />
-                <Route path="/delivery-agent/deliver/:deliveryId" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading delivery confirmation...">
-                      <DeliveryConfirmation />
-                    </RouteWrapper>
-                  </ProtectedRoute>
-                } />
-                <Route path="/delivery-agent/scan" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading QR scanner...">
-                      <QRScanner />
+                  <ProtectedRoute allowedRoles={['delivery_agent']}>
+                    <RouteWrapper loadingMessage="Loading assigned deliveries...">
+                      <DeliveryAgentPages.AssignedDeliveries />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/delivery-agent/profile" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
+                  <ProtectedRoute allowedRoles={['delivery_agent']}>
                     <RouteWrapper loadingMessage="Loading agent profile...">
-                      <AgentProfile />
-                    </RouteWrapper>
-                  </ProtectedRoute>
-                } />
-                <Route path="/delivery-agent/report-issue" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading issue reporter...">
-                      <ReportIssue />
-                    </RouteWrapper>
-                  </ProtectedRoute>
-                } />
-                <Route path="/delivery-agent/report-issue/:deliveryId" element={
-                  <ProtectedRoute allowedRoles={['deliveryAgent']}>
-                    <RouteWrapper loadingMessage="Loading issue reporter...">
-                      <ReportIssue />
+                      <DeliveryAgentPages.Profile />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
@@ -338,42 +313,63 @@ function App() {
                 <Route path="/admin/delivery-agents" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading delivery agent management...">
-                      <DeliveryAgentManagement />
-                    </RouteWrapper>
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/assignments" element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <RouteWrapper loadingMessage="Loading assignment workflow...">
-                      <AssignmentWorkflow />
+                      <AdminPages.DeliveryAgentManagement />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/couriers" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading courier management...">
-                      <ManageCouriers />
+                      <AdminPages.ManageCouriers />
+                    </RouteWrapper>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/users" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <RouteWrapper loadingMessage="Loading user management...">
+                      <AdminPages.UserManagement />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/complaints" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading complaint management...">
-                      <ManageComplaints />
+                      <AdminPages.ManageComplaints />
+                    </RouteWrapper>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/queries" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <RouteWrapper loadingMessage="Loading query management...">
+                      <AdminPages.ManageQueries />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/branches" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading branch management...">
-                      <ManageBranches />
+                      <AdminPages.ManageBranches />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/analytics" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <RouteWrapper loadingMessage="Loading analytics...">
-                      <ManageAnalytics />
+                      <AdminPages.AnalyticsReporting />
+                    </RouteWrapper>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/reports" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <RouteWrapper loadingMessage="Loading reports...">
+                      <AdminPages.AnalyticsReporting />
+                    </RouteWrapper>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/allocate-couriers" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <RouteWrapper loadingMessage="Loading allocate couriers...">
+                      <AdminPages.AllocateCouriers />
                     </RouteWrapper>
                   </ProtectedRoute>
                 } />
@@ -394,25 +390,26 @@ function App() {
             </main>
             <Footer />
             
-            {/* Enhanced Toast Configuration */}
+            {/* Enhanced Toast Configuration with Deduplication */}
             <ToastContainer
               position="top-right"
-              autoClose={5000}
+              autoClose={4000}
               hideProgressBar={false}
-              newestOnTop={false}
+              newestOnTop={true}
               closeOnClick
               rtl={false}
               pauseOnFocusLoss
               draggable
               pauseOnHover
               theme="light"
-              limit={3} // Limit number of toasts
+              limit={2} // Reduced limit to prevent clutter
               toastClassName="text-sm"
+              enableMultiContainer={false} // Prevent multiple containers
+              containerId="main-toast-container"
             />
           </div>
         </Router>
-      </AuthProvider>
-      </GoogleOAuthProvider>
+        </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -184,40 +184,7 @@ const AboutUs = () => {
 
 
 
-      {/* Call to Action */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-8 md:p-12 text-white"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to Ship with CMS?
-            </h2>
-            <p className="text-xl mb-8 text-primary-100">
-              Join thousands of satisfied customers who trust us with their deliveries
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/customer/register"
-                className="bg-white text-primary-600 px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center"
-              >
-                <i className="fas fa-user-plus mr-2"></i>
-                Get Started Today
-              </a>
-              <a
-                href="/track-parcel"
-                className="border-2 border-white text-white px-8 py-3 rounded-lg font-bold hover:bg-white hover:text-primary-600 transition-all duration-200 flex items-center justify-center"
-              >
-                <i className="fas fa-search mr-2"></i>
-                Track a Package
-              </a>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+
     </div>
   );
 };

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(chmod:*)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npm start)",
+      "Bash(timeout:*)",
+      "Bash(node:*)",
+      "Bash(touch:*)",
+      "Bash(python:*)",
+      "Bash(pip3 install:*)",
+      "Bash(npm start:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(systemctl status:*)",
+      "Bash(service mongodb:*)",
+      "Bash(mongo:*)",
+      "Bash(mongosh:*)",
+      "Bash(sudo systemctl status:*)"
+    ],
+    "deny": []
+  }
+}

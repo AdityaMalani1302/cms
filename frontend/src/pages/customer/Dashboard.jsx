@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -16,68 +15,77 @@ const Dashboard = () => {
   });
   const [recentBookings, setRecentBookings] = useState([]);
   const [recentComplaints, setRecentComplaints] = useState([]);
+  const [complaintsWithResponses, setComplaintsWithResponses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Helper function to get axios with proper headers
-  const getAxiosConfig = () => {
-    const token = sessionStorage.getItem('customerToken');
-    return {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
-    };
-  };
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate('/customer/login');
-      return;
-    }
-    
-    fetchDashboardData();
-  }, [isAuthenticated, navigate]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
-      const config = getAxiosConfig();
+      const token = sessionStorage.getItem('customerToken');
+      const config = {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
       const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       
-      const [bookingsRes, notificationsRes, complaintsRes] = await Promise.all([
+      const [bookingsRes, complaintsRes, complaintsWithResponsesRes, notificationsRes] = await Promise.all([
         axios.get(`${baseURL}/api/bookings/my?limit=5`, config).catch(err => {
           console.warn('Bookings fetch failed:', err.response?.status);
           return { data: { success: false, bookings: [] } };
         }),
-        axios.get(`${baseURL}/api/notifications/my?limit=1`, config).catch(err => {
-          console.warn('Notifications fetch failed:', err.response?.status);
-          return { data: { success: false, unreadCount: 0 } };
-        }),
-        axios.get(`${baseURL}/api/complaints/my/${user?.email}?limit=5`).catch(err => {
+        axios.get(`${baseURL}/api/complaints/my/${user?.email}?limit=5`, config).catch(err => {
           console.warn('Complaints fetch failed:', err.response?.status);
           return { data: { success: false, complaints: [] } };
+        }),
+        axios.get(`${baseURL}/api/complaints/my/${user?.email}/with-responses?limit=5`, config).catch(err => {
+          console.warn('Complaints with responses fetch failed:', err.response?.status);
+          return { data: { success: false, complaints: [] } };
+        }),
+        axios.get(`${baseURL}/api/notifications/unread-count`, config).catch(err => {
+          console.warn('Notifications fetch failed:', err.response?.status);
+          return { data: { success: false, count: 0 } };
         })
       ]);
 
       if (bookingsRes.data.success) {
         const bookings = bookingsRes.data.bookings;
+        
+        // Debug: Log booking data structure
+        console.log('Dashboard - Raw booking data:', bookings);
+        if (bookings.length > 0) {
+          console.log('Dashboard - First booking structure:', Object.keys(bookings[0]));
+          console.log('Dashboard - First booking status field:', bookings[0].status);
+        }
+        
         setRecentBookings(bookings);
         setStats(prev => ({
           ...prev,
           totalBookings: bookings.length,
-          activeBookings: bookings.filter(b => !['Delivered', 'Cancelled'].includes(b.status)).length,
-          deliveredBookings: bookings.filter(b => b.status === 'Delivered').length
+          activeBookings: bookings.filter(b => {
+            const status = b.status || b.courierStatus || b.deliveryStatus;
+            return !['Delivered', 'Cancelled', 'Delivery Failed'].includes(status);
+          }).length,
+          deliveredBookings: bookings.filter(b => {
+            const status = b.status || b.courierStatus || b.deliveryStatus;
+            return status === 'Delivered';
+          }).length
         }));
       }
 
+      // Set notification count
       if (notificationsRes.data.success) {
         setStats(prev => ({
           ...prev,
-          unreadNotifications: notificationsRes.data.unreadCount || 0
+          unreadNotifications: notificationsRes.data.count || 0
         }));
       }
 
       if (complaintsRes.data.success) {
         setRecentComplaints(complaintsRes.data.complaints);
+      }
+
+      if (complaintsWithResponsesRes.data.success) {
+        setComplaintsWithResponses(complaintsWithResponsesRes.data.complaints);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -90,22 +98,38 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email, navigate]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/customer/login');
+      return;
+    }
+    
+    fetchDashboardData();
+  }, [isAuthenticated, navigate, fetchDashboardData]);
 
   // Helper function to get status badge styles
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending pickup':
+      case 'courier pickup':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'shipped':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
       case 'intransit':
+      case 'in transit':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
+      case 'arrived at destination':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400';
       case 'out for delivery':
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
       case 'delivered':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
       case 'cancelled':
+      case 'pickup failed':
+      case 'delivery failed':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
@@ -181,13 +205,6 @@ const Dashboard = () => {
       icon: 'fas fa-ticket-alt',
       link: '/customer/track-complaint',
       color: 'red-600'
-    },
-    {
-      title: 'Get Support',
-      description: 'Contact our support team',
-      icon: 'fas fa-headset',
-      link: '/customer/support',
-      color: 'green-600'
     }
   ];
 
@@ -215,15 +232,10 @@ const Dashboard = () => {
             </div>
             <Link
               to="/customer/notifications"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 relative"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
             >
               <i className="fas fa-bell mr-2"></i>
               Notifications
-              {stats.unreadNotifications > 0 && (
-                <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[20px] h-5">
-                  {stats.unreadNotifications}
-                </span>
-              )}
             </Link>
           </div>
         </div>
@@ -271,8 +283,8 @@ const Dashboard = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-bell text-red-600 dark:text-red-400"></i>
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-bell text-purple-600 dark:text-purple-400"></i>
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Notifications</p>
@@ -337,8 +349,8 @@ const Dashboard = () => {
                             <p className="text-sm font-medium text-gray-900 dark:text-white">
                               {booking.trackingId}
                             </p>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>
-                              {booking.status}
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(booking.status || booking.courierStatus || booking.deliveryStatus)}`}>
+                              {booking.status || booking.courierStatus || booking.deliveryStatus || 'Pending'}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -391,6 +403,12 @@ const Dashboard = () => {
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(complaint.priority)}`}>
                               {complaint.priority}
                             </span>
+                            {complaint.status === 'In Progress' && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                <i className="fas fa-reply mr-1"></i>
+                                Response Available
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {complaint.complaintCategory} - {complaint.natureOfComplaint}
@@ -405,6 +423,91 @@ const Dashboard = () => {
                         >
                           Track
                         </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Admin Responses Section */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Admin Responses</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              {complaintsWithResponses.length === 0 ? (
+                <div className="p-8 text-center">
+                  <i className="fas fa-comments text-gray-400 text-3xl mb-4"></i>
+                  <p className="text-gray-600 dark:text-gray-400">No admin responses yet.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    When admins respond to your complaints, they will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {complaintsWithResponses.map((complaint, index) => (
+                    <div key={complaint.ticketNumber} className="p-6">
+                      {/* Complaint Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                            Complaint: {complaint.ticketNumber}
+                          </h3>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                            {complaint.status}
+                          </span>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                            {complaint.priority}
+                          </span>
+                        </div>
+                        <Link
+                          to={`/customer/track-complaint?ticket=${complaint.ticketNumber}`}
+                          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+                        >
+                          View Full Details
+                        </Link>
+                      </div>
+                      
+                      {/* Complaint Summary */}
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <strong>Category:</strong> {complaint.complaintCategory}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          <strong>Issue:</strong> {complaint.natureOfComplaint}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          <strong>Tracking:</strong> {complaint.trackingNumber}
+                        </p>
+                      </div>
+
+                      {/* Admin Responses */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
+                          <i className="fas fa-reply text-blue-600 mr-2"></i>
+                          Admin Responses ({complaint.adminResponses.length})
+                        </h4>
+                        {complaint.adminResponses.map((response, responseIndex) => (
+                          <div key={responseIndex} className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                Admin Response #{responseIndex + 1}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {new Date(response.addedAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {response.message}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}

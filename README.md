@@ -74,8 +74,8 @@ npm run health-check
 
 ### **Default Admin Access**
 - **Username:** `admin`
-- **Password:** `admin123`
-- **Email:** `admin@cms.com`
+- **Password:** `Cms_admin@12`
+- **Email:** `cmsad12@gmai.com`
 
 ---
 
@@ -151,93 +151,10 @@ PORT=5000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
-```
-
 #### **Frontend (.env)**
 ```env
 # Backend API
 REACT_APP_API_URL=http://localhost:5000
-
-# Google OAuth
-REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id_here
-```
-
----
-
-## 🔐 **Google OAuth Setup**
-
-### **1. Create Google OAuth Application**
-
-1. **Go to Google Cloud Console:**
-   - Visit [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-
-2. **Enable Google+ API:**
-   - Navigate to **APIs & Services** > **Library**
-   - Search for "Google+ API" and enable it
-
-3. **Create OAuth 2.0 Credentials:**
-   - Go to **APIs & Services** > **Credentials**
-   - Click **Create Credentials** > **OAuth 2.0 Client IDs**
-   - Choose **Web application**
-
-4. **Configure OAuth Settings:**
-   ```
-   Application name: Courier Management System
-   Authorized JavaScript origins:
-   - http://localhost:3000 (for development)
-   - https://your-domain.com (for production)
-   
-   Authorized redirect URIs:
-   - http://localhost:5000/api/auth/google/callback (for development)
-   - https://your-api-domain.com/api/auth/google/callback (for production)
-   ```
-
-5. **Copy Credentials:**
-   - Copy the **Client ID** and **Client Secret**
-   - Add them to your `.env` files
-
-### **2. Configure Environment Variables**
-
-**Backend (`backend/config.env`):**
-```env
-GOOGLE_CLIENT_ID=your_actual_google_client_id
-GOOGLE_CLIENT_SECRET=your_actual_google_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
-```
-
-**Frontend (`frontend/.env`):**
-```env
-REACT_APP_GOOGLE_CLIENT_ID=your_actual_google_client_id
-```
-
-### **3. Test Google OAuth**
-
-1. **Start the application:**
-   ```bash
-   npm run dev
-   ```
-
-2. **Test login/registration:**
-   - Navigate to `http://localhost:3000/customer/login`
-   - Click "Continue with Google"
-   - Complete Google authentication
-   - You should be redirected to the dashboard
-
-### **4. Features of Google OAuth Integration**
-
-- ✅ **One-click registration/login**
-- ✅ **Automatic account linking** (if email already exists)
-- ✅ **Profile picture sync** from Google
-- ✅ **Secure token handling** with JWT
-- ✅ **Profile completion flow** for missing information
-- ✅ **Seamless user experience** with error handling
-
----
 
 ## 🛠️ **Available Scripts**
 

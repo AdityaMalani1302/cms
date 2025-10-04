@@ -5,6 +5,7 @@ const Courier = require('../models/Courier');
 const Booking = require('../models/Booking');
 const { authAdmin } = require('../middleware/auth');
 const { complaintConfig } = require('../config/routeConfigs');
+const NotificationService = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -38,16 +39,15 @@ router.post('/', async (req, res) => {
       customerInfo, 
       complaintCategory, 
       priority, 
-      natureOfComplaint, 
-      issueDescription 
+      natureOfComplaint 
     } = req.body;
 
     // Validate required fields
-    if (!trackingNumber || !natureOfComplaint || !issueDescription) {
+    if (!trackingNumber || !natureOfComplaint) {
       console.log('❌ Missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: trackingNumber, natureOfComplaint, issueDescription'
+        message: 'Missing required fields: trackingNumber, natureOfComplaint'
       });
     }
 
@@ -57,6 +57,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Customer information (name, email) is required'
+      });
+    }
+
+    // Validate complaint category
+    if (!complaintCategory) {
+      console.log('❌ Missing complaint category');
+      return res.status(400).json({
+        success: false,
+        message: 'Complaint category is required'
       });
     }
     
@@ -86,26 +95,60 @@ router.post('/', async (req, res) => {
 
     console.log('✅ Tracking number found, creating complaint...');
     
-    // Use transaction for complaint processing
-    const { processComplaintTransaction } = require('../utils/transactionHelper');
+    // Transaction helper removed
     
     const complaintData = {
       trackingNumber,
       customerInfo: {
         name: customerInfo.name,
         email: customerInfo.email,
-        contactNumber: customerInfo.contactNumber || 'Not provided'
+        contactNumber: customerInfo.contactNumber || '0000000000'
       },
-      complaintCategory: complaintCategory || 'Other',
+      complaintCategory,
       priority: priority || 'Medium',
       natureOfComplaint,
-      issueDescription,
+      issueDescription: natureOfComplaint, // Use natureOfComplaint as description
       bookingId: booking?._id // Link to booking if found
     };
 
-    console.log('💾 Processing complaint with transaction...');
-    const complaint = await processComplaintTransaction(complaintData);
+    console.log('💾 Creating complaint...');
+    
+    // Create complaint directly without transaction for development
+    const Complaint = require('../models/Complaint');
+    const complaint = await Complaint.create(complaintData);
     console.log('✅ Complaint created successfully:', complaint.ticketNumber);
+    
+    // Update related booking if exists (non-transactional)
+    if (booking) {
+      try {
+        const Booking = require('../models/Booking');
+        await Booking.findByIdAndUpdate(
+          booking._id,
+          { 
+            hasComplaint: true,
+            complaintId: complaint._id
+          }
+        );
+        console.log('📝 Updated booking with complaint reference');
+      } catch (error) {
+        console.warn('⚠️ Failed to update booking:', error.message);
+      }
+    }
+
+    // Create notification for complaint
+    try {
+      // Find user by email to create notification
+      const user = await NotificationService.findUserByEmail(customerInfo.email);
+      if (user) {
+        await NotificationService.createComplaintNotification(user._id, complaint);
+        console.log('✅ Complaint notification created');
+      } else {
+        console.log('⚠️ User not found for notification:', customerInfo.email);
+      }
+    } catch (notificationError) {
+      console.error('⚠️ Failed to create complaint notification:', notificationError);
+      // Continue even if notification creation fails
+    }
 
     res.status(201).json({
       success: true,
@@ -160,16 +203,18 @@ router.get('/track/:ticketNumber', async (req, res) => {
       data: {
         ticketNumber: complaint.ticketNumber,
         trackingNumber: complaint.trackingNumber,
+        complaintCategory: complaint.complaintCategory,
         natureOfComplaint: complaint.natureOfComplaint,
         issueDescription: complaint.issueDescription,
         status: complaint.status,
         priority: complaint.priority,
         remark: complaint.remark,
+        communicationHistory: complaint.communicationHistory.filter(comm => !comm.isInternal),
         createdAt: complaint.createdAt,
         updationDate: complaint.updationDate,
         // Add real-time indicator
         lastChecked: new Date(),
-        hasAdminResponse: !!complaint.remark
+        hasAdminResponse: !!complaint.remark || (complaint.communicationHistory && complaint.communicationHistory.some(comm => comm.type === 'Admin Response' && !comm.isInternal))
       }
     });
   } catch (error) {
@@ -207,6 +252,67 @@ router.get('/my/:email', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching user complaints:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get user's complaints with admin responses
+router.get('/my/:email/with-responses', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const limit = parseInt(req.query.limit) || 5;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find complaints with admin responses (In Progress status usually indicates admin has responded)
+    const complaints = await Complaint.find({ 
+      'customerInfo.email': email.toLowerCase(),
+      status: 'In Progress',
+      $or: [
+        { 'communicationHistory.type': 'Admin Response' },
+        { remark: { $exists: true, $ne: '' } }
+      ]
+    })
+    .sort({ updationDate: -1 })
+    .limit(limit)
+    .select('ticketNumber trackingNumber complaintCategory status priority natureOfComplaint issueDescription communicationHistory remark createdAt updationDate');
+
+    // Filter and format the response data
+    const formattedComplaints = complaints.map(complaint => {
+      const adminResponses = complaint.communicationHistory ? 
+        complaint.communicationHistory.filter(comm => comm.type === 'Admin Response' && !comm.isInternal) : [];
+      
+      return {
+        ticketNumber: complaint.ticketNumber,
+        trackingNumber: complaint.trackingNumber,
+        complaintCategory: complaint.complaintCategory,
+        status: complaint.status,
+        priority: complaint.priority,
+        natureOfComplaint: complaint.natureOfComplaint,
+        issueDescription: complaint.issueDescription,
+        remark: complaint.remark,
+        createdAt: complaint.createdAt,
+        updationDate: complaint.updationDate,
+        adminResponses: adminResponses,
+        hasAdminResponse: adminResponses.length > 0 || !!complaint.remark
+      };
+    }).filter(complaint => complaint.hasAdminResponse);
+
+    res.json({
+      success: true,
+      complaints: formattedComplaints,
+      count: formattedComplaints.length
+    });
+  } catch (error) {
+    console.error('Error fetching complaints with responses:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

@@ -36,7 +36,8 @@ router.post('/bookings/multiple', [
     const { bookings, groupOptions } = req.body;
     const { userId } = req.user;
 
-    const result = await customerExperienceService.createMultipleBookings(
+    // Multiple bookings functionality simplified - use single booking instead
+    const result = await customerExperienceService.createBooking(
       userId,
       bookings,
       groupOptions

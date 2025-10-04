@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { Card, Badge, LoadingSpinner, Button } from '../components/ui';
+import { Card, Badge, LoadingSpinner } from '../components/ui';
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
@@ -113,7 +113,7 @@ const Branches = () => {
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
             >
               {branches.map((branch, index) => (
-                <motion.div key={branch.id} variants={itemVariants}>
+                <motion.div key={branch._id || branch.id || index} variants={itemVariants}>
                   <Card className="group hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
                     <div className="p-6">
                       {/* Branch Icon */}
@@ -196,27 +196,7 @@ const Branches = () => {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex space-x-3 mt-6 pt-6 border-t border-secondary-200 dark:border-secondary-600">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          leftIcon="fas fa-directions"
-                          className="flex-1"
-                          onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(branch.branchAddress + ', ' + branch.branchCity)}`)}
-                        >
-                          Directions
-                        </Button>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          leftIcon="fas fa-phone"
-                          className="flex-1"
-                          onClick={() => window.open(`tel:${branch.branchContactNumber}`)}
-                        >
-                          Call Now
-                        </Button>
-                      </div>
+
                     </div>
                   </Card>
                 </motion.div>

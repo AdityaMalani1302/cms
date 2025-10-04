@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { validators } from '../../utils/validators';
@@ -22,7 +22,6 @@ const RaiseComplaint = () => {
     trackingNumber: '',
     complaintCategory: '',
     natureOfComplaint: '',
-    issueDescription: '',
     priority: 'Medium'
   });
 
@@ -57,8 +56,6 @@ const RaiseComplaint = () => {
         return validators.select.validate(value, 'complaint category');
       case 'natureOfComplaint':
         return validators.briefDescription.validate(value);
-      case 'issueDescription':
-        return validators.detailedDescription.validate(value);
       case 'priority':
         return validators.select.validate(value, 'priority level');
       default:
@@ -73,7 +70,6 @@ const RaiseComplaint = () => {
     newErrors.trackingNumber = validateField('trackingNumber', formData.trackingNumber);
     newErrors.complaintCategory = validateField('complaintCategory', formData.complaintCategory);
     newErrors.natureOfComplaint = validateField('natureOfComplaint', formData.natureOfComplaint);
-    newErrors.issueDescription = validateField('issueDescription', formData.issueDescription);
     newErrors.priority = validateField('priority', formData.priority);
     
     // Remove null errors
@@ -123,7 +119,7 @@ const RaiseComplaint = () => {
     e.preventDefault();
     
     if (!validateForm()) {
-      toast.error('Please fix the validation errors');
+      showToast.error('Please fix the validation errors');
       return;
     }
 
@@ -139,8 +135,7 @@ const RaiseComplaint = () => {
         },
         complaintCategory: formData.complaintCategory,
         priority: formData.priority,
-        natureOfComplaint: formData.natureOfComplaint.trim(),
-        issueDescription: formData.issueDescription.trim()
+        natureOfComplaint: formData.natureOfComplaint.trim()
       };
 
       console.log('📋 Submitting complaint:', complaintData);
@@ -149,12 +144,11 @@ const RaiseComplaint = () => {
       const response = await axios.post(`${baseURL}/api/complaints`, complaintData);
       
       if (response.data.success) {
-        toast.success(`Complaint submitted successfully! Your ticket number is: ${response.data.data.ticketNumber}`);
+        showToast.success(`Complaint submitted successfully! Your ticket number is: ${response.data.data.ticketNumber}`);
         setFormData({
           trackingNumber: '',
           complaintCategory: '',
           natureOfComplaint: '',
-          issueDescription: '',
           priority: 'Medium'
         });
         setErrors({});
@@ -162,11 +156,11 @@ const RaiseComplaint = () => {
     } catch (error) {
       console.error('❌ Complaint submission error:', error);
       if (error.response?.status === 404) {
-        toast.error('Invalid tracking number. Please check and try again.');
+        showToast.error('Invalid tracking number. Please check and try again.');
       } else if (error.response?.status === 400) {
-        toast.error(error.response?.data?.message || 'Please check your input and try again.');
+        showToast.error(error.response?.data?.message || 'Please check your input and try again.');
       } else {
-        toast.error(error.response?.data?.message || 'Error submitting complaint. Please try again.');
+        showToast.error(error.response?.data?.message || 'Error submitting complaint. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -195,18 +189,18 @@ const RaiseComplaint = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-primary-50 dark:from-secondary-900 dark:to-secondary-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
-      <section className="relative gradient-bg-danger overflow-hidden py-20">
-        <div className="absolute inset-0 hero-pattern"></div>
+      <section className="relative bg-gradient-to-br from-blue-600 to-indigo-700 overflow-hidden py-20">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 backdrop-blur-sm"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
-              <i className="fas fa-exclamation-triangle text-white text-3xl"></i>
+            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm transform transition-transform hover:scale-105 hover:rotate-3">
+              <i className="fas fa-exclamation-circle text-white text-3xl"></i>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-white font-display mb-4">
               Raise a Complaint
@@ -229,15 +223,15 @@ const RaiseComplaint = () => {
           >
             {/* Form */}
             <motion.div variants={itemVariants}>
-              <div className="card-elevated p-8">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
                 <div className="text-center mb-8">
-                  <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-file-alt text-white text-xl"></i>
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 transform transition-transform hover:scale-105 hover:rotate-3">
+                    <i className="fas fa-clipboard-list text-white text-2xl"></i>
                   </div>
-                  <h2 className="text-2xl font-bold text-secondary-800 dark:text-white mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                     Submit Your Complaint
                   </h2>
-                  <p className="text-secondary-600 dark:text-secondary-400">
+                  <p className="text-gray-600 dark:text-gray-400">
                     Please provide as much detail as possible to help us resolve your issue quickly
                   </p>
                 </div>
@@ -245,31 +239,37 @@ const RaiseComplaint = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Tracking Number */}
                   <div>
-                    <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                      <i className="fas fa-hashtag text-primary-500 mr-2"></i>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-hashtag text-blue-500 mr-2"></i>
                       Tracking Number *
                     </label>
-                    <input
-                      type="text"
-                      name="trackingNumber"
-                      placeholder="Enter your tracking/reference number"
-                      value={formData.trackingNumber}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={`input-field ${errors.trackingNumber ? 'border-red-500 focus:border-red-500' : ''}`}
-                    />
-                    {errors.trackingNumber && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        <i className="fas fa-exclamation-circle mr-1"></i>
-                        {errors.trackingNumber}
-                      </p>
-                    )}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="trackingNumber"
+                        placeholder="Enter your tracking/reference number"
+                        value={formData.trackingNumber}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className="block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                      />
+                      {touched.trackingNumber && errors.trackingNumber && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-red-500 text-sm mt-1 flex items-center"
+                        >
+                          <i className="fas fa-exclamation-circle mr-1"></i>
+                          {errors.trackingNumber}
+                        </motion.p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Complaint Category */}
                   <div>
-                    <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                      <i className="fas fa-list text-primary-500 mr-2"></i>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-folder text-blue-500 mr-2"></i>
                       Complaint Category *
                     </label>
                     <select
@@ -277,164 +277,89 @@ const RaiseComplaint = () => {
                       value={formData.complaintCategory}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      className={`input-field ${errors.complaintCategory ? 'border-red-500 focus:border-red-500' : ''}`}
+                      className="block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                     >
                       <option value="">Select a category</option>
-                      {complaintCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
+                      {complaintCategories.map(category => (
+                        <option key={category} value={category}>{category}</option>
                       ))}
                     </select>
-                    {errors.complaintCategory && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {touched.complaintCategory && errors.complaintCategory && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-red-500 text-sm mt-1 flex items-center"
+                      >
                         <i className="fas fa-exclamation-circle mr-1"></i>
                         {errors.complaintCategory}
-                      </p>
+                      </motion.p>
                     )}
                   </div>
 
-                  {/* Priority */}
+                  {/* Priority Level */}
                   <div>
-                    <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                      <i className="fas fa-flag text-primary-500 mr-2"></i>
-                      Priority Level
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-flag text-blue-500 mr-2"></i>
+                      Priority Level *
                     </label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {priorityLevels.map((priority) => (
-                        <label
-                          key={priority.value}
-                          className={`relative flex items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                            formData.priority === priority.value
-                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                              : 'border-secondary-200 dark:border-secondary-700 hover:border-primary-300'
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {priorityLevels.map(({ value, label, color }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => handleChange({ target: { name: 'priority', value } })}
+                          className={`px-4 py-2 rounded-lg border transition-all ${
+                            formData.priority === value
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
                           }`}
                         >
-                          <input
-                            type="radio"
-                            name="priority"
-                            value={priority.value}
-                            checked={formData.priority === priority.value}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            className="sr-only"
-                          />
-                          <span className={`font-medium ${priority.color}`}>
-                            {priority.label}
-                          </span>
-                          {formData.priority === priority.value && (
-                            <i className="fas fa-check text-primary-500 absolute top-1 right-1 text-sm"></i>
-                          )}
-                        </label>
+                          {label}
+                        </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Nature of Complaint */}
                   <div>
-                    <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                      <i className="fas fa-comment text-primary-500 mr-2"></i>
-                      Brief Description *
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <i className="fas fa-comment-alt text-blue-500 mr-2"></i>
+                      Nature of Complaint *
                     </label>
-                    <input
-                      type="text"
+                    <textarea
                       name="natureOfComplaint"
-                      placeholder="Briefly describe your complaint (10-200 characters)"
+                      placeholder="Please describe your issue in detail..."
                       value={formData.natureOfComplaint}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      maxLength={200}
-                      className={`input-field ${errors.natureOfComplaint ? 'border-red-500 focus:border-red-500' : ''}`}
+                      rows={4}
+                      className="block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors resize-none"
                     />
-                    <div className="flex justify-between items-center mt-1">
-                      {errors.natureOfComplaint ? (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                          <i className="fas fa-exclamation-circle mr-1"></i>
-                          {errors.natureOfComplaint}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-secondary-500 dark:text-secondary-400">
-                          Minimum 10 characters required
-                        </p>
-                      )}
-                      <span className="text-sm text-secondary-500 dark:text-secondary-400">
-                        {formData.natureOfComplaint.length}/200
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Issue Description */}
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                      <i className="fas fa-file-alt text-primary-500 mr-2"></i>
-                      Detailed Description *
-                    </label>
-                    <textarea
-                      name="issueDescription"
-                      rows={6}
-                      placeholder="Please provide detailed information about the issue, including dates, times, and any relevant circumstances (20-1000 characters)"
-                      value={formData.issueDescription}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      maxLength={1000}
-                      className={`input-field resize-none ${errors.issueDescription ? 'border-red-500 focus:border-red-500' : ''}`}
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      {errors.issueDescription ? (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                          <i className="fas fa-exclamation-circle mr-1"></i>
-                          {errors.issueDescription}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-secondary-500 dark:text-secondary-400">
-                          Minimum 20 characters required for detailed description
-                        </p>
-                      )}
-                      <span className="text-sm text-secondary-500 dark:text-secondary-400">
-                        {formData.issueDescription.length}/1000
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Customer Information Display */}
-                  <div className="bg-secondary-50 dark:bg-secondary-800 rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-3">
-                      <i className="fas fa-user text-primary-500 mr-2"></i>
-                      Your Contact Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-secondary-600 dark:text-secondary-400">Name:</span>
-                        <span className="ml-2 font-medium text-secondary-900 dark:text-white">
-                          {user?.name || 'Not provided'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-secondary-600 dark:text-secondary-400">Email:</span>
-                        <span className="ml-2 font-medium text-secondary-900 dark:text-white">
-                          {user?.email || 'Not provided'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-secondary-600 dark:text-secondary-400">Phone:</span>
-                        <span className="ml-2 font-medium text-secondary-900 dark:text-white">
-                          {user?.phoneNumber || 'Not provided'}
-                        </span>
-                      </div>
-                    </div>
+                    {touched.natureOfComplaint && errors.natureOfComplaint && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-red-500 text-sm mt-1 flex items-center"
+                      >
+                        <i className="fas fa-exclamation-circle mr-1"></i>
+                        {errors.natureOfComplaint}
+                      </motion.p>
+                    )}
                   </div>
 
                   {/* Submit Button */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <button
+                  <div className="flex justify-center pt-4">
+                    <motion.button
                       type="submit"
                       disabled={loading}
-                      className="btn-danger flex-1 relative"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-300 flex items-center justify-center min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <>
-                          <i className="fas fa-spinner fa-spin mr-2"></i>
-                          Submitting Complaint...
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Submitting...
                         </>
                       ) : (
                         <>
@@ -442,65 +367,9 @@ const RaiseComplaint = () => {
                           Submit Complaint
                         </>
                       )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({
-                          trackingNumber: '',
-                          complaintCategory: '',
-                          natureOfComplaint: '',
-                          issueDescription: '',
-                          priority: 'Medium'
-                        });
-                        setErrors({});
-                      }}
-                      className="btn-outline-secondary"
-                    >
-                      <i className="fas fa-undo mr-2"></i>
-                      Reset Form
-                    </button>
+                    </motion.button>
                   </div>
                 </form>
-              </div>
-            </motion.div>
-
-            {/* Help Information */}
-            <motion.div variants={itemVariants}>
-              <div className="card-elevated p-6">
-                <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4">
-                  <i className="fas fa-info-circle text-primary-500 mr-2"></i>
-                  What Happens Next?
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fas fa-ticket-alt text-blue-600 text-lg"></i>
-                    </div>
-                    <h4 className="font-semibold text-secondary-900 dark:text-white mb-2">Ticket Generated</h4>
-                    <p className="text-sm text-secondary-600 dark:text-secondary-400">
-                      You'll receive a unique ticket number for tracking your complaint
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fas fa-user-tie text-yellow-600 text-lg"></i>
-                    </div>
-                    <h4 className="font-semibold text-secondary-900 dark:text-white mb-2">Team Review</h4>
-                    <p className="text-sm text-secondary-600 dark:text-secondary-400">
-                      Our support team will review and investigate your complaint
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fas fa-check-circle text-green-600 text-lg"></i>
-                    </div>
-                    <h4 className="font-semibold text-secondary-900 dark:text-white mb-2">Resolution</h4>
-                    <p className="text-sm text-secondary-600 dark:text-secondary-400">
-                      We'll work to resolve your issue and keep you updated
-                    </p>
-                  </div>
-                </div>
               </div>
             </motion.div>
           </motion.div>

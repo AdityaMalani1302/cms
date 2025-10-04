@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import { useAuth } from '../../context/AuthContext';
 import { validators } from '../../utils/validators';
+import { AddressInput } from '../../components/ui';
 
 const BookCourier = () => {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ const BookCourier = () => {
 
   useEffect(() => {
     // Calculate cost when weight or delivery speed changes
-    if (formData.weight && formData.deliverySpeed) {
+    if (formData.weight && parseFloat(formData.weight) > 0 && formData.deliverySpeed) {
       calculateCost();
     }
   }, [formData.weight, formData.deliverySpeed]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,7 +89,7 @@ const BookCourier = () => {
     } catch (error) {
       console.error('Error calculating cost:', error);
       if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
+        showToast.error('Session expired. Please login again.');
         navigate('/customer/login');
       }
     }
@@ -101,14 +102,16 @@ const BookCourier = () => {
       case 'deliveryAddress.street':
         return validators.address.validate(value);
       case 'pickupAddress.city':
+        return validators.city.validate(value, formData.pickupAddress.state);
       case 'deliveryAddress.city':
-        return validators.city.validate(value);
+        return validators.city.validate(value, formData.deliveryAddress.state);
       case 'pickupAddress.state':
       case 'deliveryAddress.state':
         return validators.state.validate(value);
       case 'pickupAddress.pincode':
+        return validators.pincode.validate(value, formData.pickupAddress.city, formData.pickupAddress.state);
       case 'deliveryAddress.pincode':
-        return validators.pincode.validate(value);
+        return validators.pincode.validate(value, formData.deliveryAddress.city, formData.deliveryAddress.state);
       case 'recipientName':
         return validators.name.validate(value);
       case 'recipientPhone':
@@ -120,7 +123,7 @@ const BookCourier = () => {
       case 'deliverySpeed':
         return validators.select.validate(value, 'delivery speed');
       case 'description':
-        return validators.description.validate(value, 5, 500);
+        return null; // Optional field, no validation required
       case 'pickupDate':
         if (!value) return 'Pickup date is required';
         const selectedDate = new Date(value);
@@ -140,14 +143,14 @@ const BookCourier = () => {
     
     // Validate pickup address
     newErrors['pickupAddress.street'] = validateField('pickupAddress.street', formData.pickupAddress.street);
-    newErrors['pickupAddress.city'] = validateField('pickupAddress.city', formData.pickupAddress.city);
     newErrors['pickupAddress.state'] = validateField('pickupAddress.state', formData.pickupAddress.state);
+    newErrors['pickupAddress.city'] = validateField('pickupAddress.city', formData.pickupAddress.city);
     newErrors['pickupAddress.pincode'] = validateField('pickupAddress.pincode', formData.pickupAddress.pincode);
     
     // Validate delivery address
     newErrors['deliveryAddress.street'] = validateField('deliveryAddress.street', formData.deliveryAddress.street);
-    newErrors['deliveryAddress.city'] = validateField('deliveryAddress.city', formData.deliveryAddress.city);
     newErrors['deliveryAddress.state'] = validateField('deliveryAddress.state', formData.deliveryAddress.state);
+    newErrors['deliveryAddress.city'] = validateField('deliveryAddress.city', formData.deliveryAddress.city);
     newErrors['deliveryAddress.pincode'] = validateField('deliveryAddress.pincode', formData.deliveryAddress.pincode);
     
     // Validate recipient details
@@ -158,7 +161,8 @@ const BookCourier = () => {
     newErrors.packageType = validateField('packageType', formData.packageType);
     newErrors.weight = validateField('weight', formData.weight);
     newErrors.deliverySpeed = validateField('deliverySpeed', formData.deliverySpeed);
-    newErrors.description = validateField('description', formData.description);
+    // Description is optional, skip validation
+    // newErrors.description = validateField('description', formData.description);
     newErrors.pickupDate = validateField('pickupDate', formData.pickupDate);
     
     // Remove null errors
@@ -170,7 +174,27 @@ const BookCourier = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle input change with validation
+  // Handle address change from AddressInput component
+  const handleAddressChange = (fieldName, value, updatedAddress) => {
+    if (fieldName.includes('.')) {
+      const [parent] = fieldName.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: updatedAddress
+      }));
+    }
+    
+    // Validate field if it has been touched
+    if (touched[fieldName]) {
+      const error = validateField(fieldName, value);
+      setErrors(prev => ({
+        ...prev,
+        [fieldName]: error
+      }));
+    }
+  };
+
+  // Handle input change with validation (for non-address fields)
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -212,6 +236,10 @@ const BookCourier = () => {
 
   // Handle field blur for validation
   const handleBlur = (e) => {
+    if (!e || !e.target) {
+      console.error('handleBlur: event or event.target is undefined');
+      return;
+    }
     const { name } = e.target;
     setTouched(prev => ({
       ...prev,
@@ -234,7 +262,7 @@ const BookCourier = () => {
     
     // Validate all fields before submission
     if (!validateForm()) {
-      toast.error('Please fix the validation errors before submitting');
+      showToast.error('Please fix the validation errors before submitting');
       return;
     }
     
@@ -245,15 +273,15 @@ const BookCourier = () => {
       const response = await axios.post(`${baseURL}/api/bookings`, formData, getAxiosConfig());
       
       if (response.data.success) {
-        toast.success('Booking created successfully!');
+        showToast.success('Courier booked successfully!');
         navigate('/customer/dashboard');
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to create booking';
-      toast.error(message);
+      showToast.error(message);
       
       if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
+        showToast.error('Session expired. Please login again.');
         navigate('/customer/login');
       }
     } finally {
@@ -277,158 +305,26 @@ const BookCourier = () => {
 
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Pickup Address */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Pickup Address
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Street Address
-                    </label>
-                    <input
-                      type="text"
-                      name="pickupAddress.street"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.pickupAddress.street}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['pickupAddress.street'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['pickupAddress.street']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="pickupAddress.city"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.pickupAddress.city}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['pickupAddress.city'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['pickupAddress.city']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      name="pickupAddress.state"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.pickupAddress.state}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['pickupAddress.state'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['pickupAddress.state']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Pincode
-                    </label>
-                    <input
-                      type="text"
-                      name="pickupAddress.pincode"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.pickupAddress.pincode}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['pickupAddress.pincode'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['pickupAddress.pincode']}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <AddressInput
+                address={formData.pickupAddress}
+                onChange={handleAddressChange}
+                onBlur={handleBlur}
+                errors={errors}
+                touched={touched}
+                prefix="pickupAddress"
+                title="Pickup Address"
+              />
 
               {/* Delivery Address */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Delivery Address
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Street Address
-                    </label>
-                    <input
-                      type="text"
-                      name="deliveryAddress.street"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.deliveryAddress.street}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['deliveryAddress.street'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['deliveryAddress.street']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="deliveryAddress.city"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.deliveryAddress.city}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['deliveryAddress.city'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['deliveryAddress.city']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      name="deliveryAddress.state"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.deliveryAddress.state}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['deliveryAddress.state'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['deliveryAddress.state']}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Pincode
-                    </label>
-                    <input
-                      type="text"
-                      name="deliveryAddress.pincode"
-                      required
-                      className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                      value={formData.deliveryAddress.pincode}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {errors['deliveryAddress.pincode'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['deliveryAddress.pincode']}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <AddressInput
+                address={formData.deliveryAddress}
+                onChange={handleAddressChange}
+                onBlur={handleBlur}
+                errors={errors}
+                touched={touched}
+                prefix="deliveryAddress"
+                title="Delivery Address"
+              />
 
               {/* Recipient Details */}
               <div>

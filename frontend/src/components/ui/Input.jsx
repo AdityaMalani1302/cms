@@ -12,6 +12,7 @@ const Input = forwardRef(({
   size = 'md',
   fullWidth = false,
   className = '',
+  touched, // Extract touched to prevent it from being passed to DOM
   ...props
 }, ref) => {
   const baseClasses = 'border rounded-xl transition-all duration-300 bg-white dark:bg-secondary-800 placeholder-secondary-400 dark:placeholder-secondary-500 text-secondary-900 dark:text-white';
@@ -23,9 +24,9 @@ const Input = forwardRef(({
   };
 
   const sizes = {
-    sm: 'px-3 py-2 text-sm',
-    md: 'px-4 py-3 text-base',
-    lg: 'px-5 py-4 text-lg'
+    sm: 'px-3 py-2 text-sm min-h-[2.5rem]',
+    md: 'px-4 py-3 text-base min-h-[3rem]',
+    lg: 'px-5 py-4 text-lg min-h-[3.5rem]'
   };
 
   const inputVariant = error ? 'error' : variant;
@@ -36,7 +37,7 @@ const Input = forwardRef(({
     sizes[size],
     leftIcon && 'pl-12',
     rightIcon && 'pr-12',
-    fullWidth ? 'w-full' : '',
+    fullWidth ? 'w-full' : 'w-full', // Always full width by default
     className
   );
 

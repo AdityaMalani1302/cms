@@ -1,29 +1,77 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
+import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 
 const DeliveryAgentDashboard = () => {
   const navigate = useNavigate();
+  const { user, restoreUserState } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [agentInfo, setAgentInfo] = useState(null);
   const [isAvailable, setIsAvailable] = useState(true);
+  const [branchName, setBranchName] = useState('Not Assigned');
+
+  // Helper function to fetch branch name by ID
+  const fetchBranchName = async (branchId) => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/branches/${branchId}`);
+      if (response.data.success) {
+        return response.data.data.branchName;
+      }
+    } catch (error) {
+      console.error('Error fetching branch name:', error);
+    }
+    return branchId; // Fallback to ID if fetch fails
+  };
+
+  // Helper function to format branch name
+  const formatBranchName = async (branch) => {
+    if (!branch) return 'Not Assigned';
+    
+    // Check if it looks like an ObjectId (24 character hex string)
+    if (typeof branch === 'string' && branch.match(/^[a-f\d]{24}$/i)) {
+      const name = await fetchBranchName(branch);
+      setBranchName(name);
+      return name;
+    }
+    
+    setBranchName(branch);
+    return branch;
+  };
 
   const handleLogout = useCallback(() => {
-    // Clear all possible token storage keys
+    // Clear all possible token storage keys from both localStorage and sessionStorage
     localStorage.removeItem('agentToken');
     localStorage.removeItem('deliveryAgentToken');
     localStorage.removeItem('user');
     localStorage.removeItem('deliveryAgentInfo');
+    sessionStorage.removeItem('agentToken');
+    sessionStorage.removeItem('agentRefreshToken');
+    sessionStorage.removeItem('deliveryAgentToken');
+    sessionStorage.removeItem('deliveryAgentRefreshToken');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('deliveryAgentInfo');
     delete axios.defaults.headers.common['Authorization'];
     navigate('/delivery-agent/login');
   }, [navigate]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
+      // Check sessionStorage first, then localStorage for backward compatibility
+      const token = sessionStorage.getItem('agentToken') || 
+                   sessionStorage.getItem('deliveryAgentToken') ||
+                   localStorage.getItem('agentToken') || 
+                   localStorage.getItem('deliveryAgentToken');
+      
+      if (!token) {
+        console.log('No token found, redirecting to login');
+        handleLogout();
+        return;
+      }
+      
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/delivery-agent/dashboard`,
         {
@@ -37,9 +85,10 @@ const DeliveryAgentDashboard = () => {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       if (error.response?.status === 401) {
+        console.log('Unauthorized, redirecting to login');
         handleLogout();
       } else {
-        toast.error('Failed to load dashboard data');
+        showToast.error('Failed to load dashboard data');
       }
     } finally {
       setLoading(false);
@@ -47,24 +96,43 @@ const DeliveryAgentDashboard = () => {
   }, [handleLogout]);
 
   useEffect(() => {
-    // Check if user is logged in (support both new and legacy token names)
-    const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
-    const info = localStorage.getItem('user') || localStorage.getItem('deliveryAgentInfo');
+    // Check if user is logged in (check sessionStorage first, then localStorage)
+    const token = sessionStorage.getItem('agentToken') || 
+                 sessionStorage.getItem('deliveryAgentToken') ||
+                 localStorage.getItem('agentToken') || 
+                 localStorage.getItem('deliveryAgentToken');
+    const info = sessionStorage.getItem('user') || 
+                sessionStorage.getItem('deliveryAgentInfo') ||
+                localStorage.getItem('user') || 
+                localStorage.getItem('deliveryAgentInfo');
     
     if (!token || !info) {
+      console.log('No token or user info found, redirecting to login');
       navigate('/delivery-agent/login');
       return;
     }
 
-    const agentData = JSON.parse(info);
-    setAgentInfo(agentData);
-    setIsAvailable(agentData.isAvailable);
-    fetchDashboardData();
-  }, [navigate, fetchDashboardData]);
+    try {
+      const agentData = JSON.parse(info);
+      setAgentInfo(agentData);
+      setIsAvailable(agentData.isAvailable);
+      // Format branch name if it's an ObjectId
+      if (agentData.assignedBranch) {
+        formatBranchName(agentData.assignedBranch);
+      }
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      navigate('/delivery-agent/login');
+    }
+  }, [navigate]); // Remove fetchDashboardData dependency
 
   const toggleAvailability = async () => {
     try {
-      const token = localStorage.getItem('agentToken') || localStorage.getItem('deliveryAgentToken');
+      const token = sessionStorage.getItem('agentToken') || 
+                   sessionStorage.getItem('deliveryAgentToken') ||
+                   localStorage.getItem('agentToken') || 
+                   localStorage.getItem('deliveryAgentToken');
       const response = await axios.put(
         `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/delivery-agent/availability`,
         { isAvailable: !isAvailable },
@@ -75,7 +143,7 @@ const DeliveryAgentDashboard = () => {
 
       if (response.data.success) {
         setIsAvailable(!isAvailable);
-        toast.success(`You are now ${!isAvailable ? 'available' : 'unavailable'} for deliveries`);
+        showToast.success(`You are now ${!isAvailable ? 'available' : 'unavailable'} for pickups`);
         
         // Update stored agent info (support both storage methods)
         const updatedInfo = { ...agentInfo, isAvailable: !isAvailable };
@@ -85,23 +153,7 @@ const DeliveryAgentDashboard = () => {
         localStorage.setItem('deliveryAgentInfo', JSON.stringify(updatedInfo));
       }
     } catch (error) {
-      toast.error('Failed to update availability');
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Delivered':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'Out for Delivery':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'Intransit':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'Pickup Failed':
-      case 'Delivery Failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      showToast.error('Failed to update availability');
     }
   };
 
@@ -131,7 +183,7 @@ const DeliveryAgentDashboard = () => {
                   Welcome, {agentInfo?.name}
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Agent ID: {agentInfo?.agentId} • {agentInfo?.assignedBranch}
+                  Agent ID: {agentInfo?.agentId} • {branchName}
                 </p>
               </div>
             </div>
@@ -168,7 +220,7 @@ const DeliveryAgentDashboard = () => {
                 <p className="text-2xl font-bold text-gray-800 dark:text-white">
                   {dashboardData?.stats.assignedDeliveries || 0}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Active Deliveries</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Assigned Pickups</p>
               </div>
             </div>
           </motion.div>
@@ -225,7 +277,7 @@ const DeliveryAgentDashboard = () => {
                 <p className="text-2xl font-bold text-gray-800 dark:text-white">
                   {dashboardData?.stats.totalDeliveries || 0}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Deliveries</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Pickups</p>
               </div>
             </div>
           </motion.div>
@@ -239,29 +291,44 @@ const DeliveryAgentDashboard = () => {
           className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 mb-6"
         >
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <button
-              onClick={() => navigate('/delivery-agent/assignments')}
+              onClick={() => {
+                console.log('🔄 Navigating to assignments...');
+                console.log('📝 Current sessionStorage:', {
+                  agentToken: sessionStorage.getItem('agentToken'),
+                  user: sessionStorage.getItem('user'),
+                  hasUser: !!sessionStorage.getItem('user')
+                });
+                console.log('🔍 AuthContext user state:', user);
+                
+                // Ensure user state is properly set before navigation
+                if (!user && sessionStorage.getItem('user')) {
+                  console.log('⚠️ User state missing but sessionStorage has user data, restoring...');
+                  const restoredUser = restoreUserState();
+                  if (!restoredUser) {
+                    console.log('❌ Could not restore user state, reloading page...');
+                    window.location.reload();
+                    return;
+                  }
+                  // Give a moment for state to update
+                  setTimeout(() => navigate('/delivery-agent/assignments'), 100);
+                  return;
+                }
+                
+                navigate('/delivery-agent/assignments');
+              }}
               className="flex items-center justify-center p-4 bg-blue-50 dark:bg-blue-900 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors"
             >
               <div className="text-center">
                 <i className="fas fa-list text-blue-600 dark:text-blue-400 text-2xl mb-2"></i>
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">View Assignments</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate('/delivery-agent/scan')}
-              className="flex items-center justify-center p-4 bg-green-50 dark:bg-green-900 rounded-lg hover:bg-green-100 dark:hover:bg-green-800 transition-colors"
-            >
-              <div className="text-center">
-                <i className="fas fa-qrcode text-green-600 dark:text-green-400 text-2xl mb-2"></i>
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">Scan Package</p>
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">View Pickup Assignments</p>
               </div>
             </button>
           </div>
         </motion.div>
 
-        {/* Recent Deliveries */}
+        {/* Recent Pickups */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -269,7 +336,7 @@ const DeliveryAgentDashboard = () => {
           className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Deliveries</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Pickups</h3>
             <button
               onClick={() => navigate('/delivery-agent/assignments')}
               className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-800 dark:hover:text-blue-200"
@@ -290,7 +357,12 @@ const DeliveryAgentDashboard = () => {
                       <p className="font-medium text-gray-800 dark:text-white text-sm">
                         #{delivery.refNumber}
                       </p>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(delivery.status)}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        delivery.status === 'Delivered' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        delivery.status === 'Out for Delivery' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        delivery.status === 'Intransit' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
                         {delivery.status}
                       </span>
                     </div>
@@ -310,7 +382,7 @@ const DeliveryAgentDashboard = () => {
           ) : (
             <div className="text-center py-8">
               <i className="fas fa-truck text-gray-400 text-4xl mb-3"></i>
-              <p className="text-gray-600 dark:text-gray-400">No recent deliveries</p>
+              <p className="text-gray-600 dark:text-gray-400">No recent pickups</p>
             </div>
           )}
         </motion.div>

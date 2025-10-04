@@ -40,8 +40,8 @@ const seedData = async () => {
       adminName: 'Admin',
       adminUsername: 'admin',
       phone: '9878987987',
-      adminEmail: 'admin@gmail.com',
-      adminPassword: 'Test@123' // Will be hashed automatically
+      adminEmail: 'cmsad12@gmai.com',
+      adminPassword: 'Cms_admin@12' // Will be hashed automatically
     });
     await admin.save();
     console.log('Admin seeded');
@@ -124,7 +124,7 @@ const seedData = async () => {
 
     // Seed sample courier data
     const courier = new Courier({
-      refNumber: '997614830',
+      refNumber: 'TRK116105512',
       senderBranch: 'CMS Kanpur',
       senderName: 'Rahul Mahajan',
       senderContactNumber: '8569745697',

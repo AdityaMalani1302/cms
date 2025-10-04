@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-// import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
+import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { validators } from '../../utils/validators';
+import { useNavigate, Link } from 'react-router-dom';
 import { PasswordInput } from '../../components/ui';
 
 const AdminLogin = () => {
@@ -101,44 +100,56 @@ const AdminLogin = () => {
       if (result.success) {
         toast.success('Login successful!');
         navigate('/admin/dashboard');
+      } else {
+        toast.error(result.message || 'Login failed. Please try again.');
       }
     } catch (error) {
-      // Error handled in adminLogin function
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-primary-50 dark:from-secondary-900 dark:to-secondary-800 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-secondary-800 rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-12 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8"
+      >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="fas fa-user-shield text-white text-2xl"></i>
           </div>
-          <h1 className="text-2xl font-bold text-secondary-800 dark:text-secondary-200 mb-2">Admin Login</h1>
-          <p className="text-secondary-600 dark:text-secondary-400">Access the admin dashboard</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Admin Login</h1>
+          <p className="text-gray-600 dark:text-gray-400">Access the admin dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Username
             </label>
-            <input
-              type="text"
-              name="username"
-              value={credentials.username}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              required
-              className="w-full px-4 py-3 border border-secondary-300 dark:border-secondary-600 rounded-xl focus:ring-4 focus:ring-primary-300 focus:border-primary-500 transition-all duration-300 bg-white dark:bg-secondary-700 text-secondary-900 dark:text-white placeholder-secondary-400 dark:placeholder-secondary-500"
-              placeholder="Enter your username"
-            />
-            {errors.username && <p className="text-red-600 dark:text-red-400 text-sm">{errors.username}</p>}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i className="fas fa-user text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                name="username"
+                value={credentials.username}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                required
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Enter your username"
+              />
+            </div>
+            {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
           </div>
 
-          <div className="mb-6">
+          <div>
             <PasswordInput
               label="Password"
               name="password"
@@ -146,33 +157,60 @@ const AdminLogin = () => {
               value={credentials.password}
               onChange={handleChange}
               onBlur={handleBlur}
-              error={errors.password ? errors.password : null}
+              error={errors.password}
               placeholder="Enter your password"
               required
               autoComplete="current-password"
-              className="w-full px-4 py-3 border border-secondary-300 rounded-xl focus:ring-4 focus:ring-primary-300 focus:border-primary-500 transition-all duration-300"
+              icon="fas fa-lock"
+              className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:ring-4 focus:ring-primary-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
-                Signing in...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-sign-in-alt mr-2"></i>
-                Sign In
-              </>
-            )}
-          </button>
+          <div className="flex justify-center">
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex justify-center py-3 px-8 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[280px]"
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <i className="fas fa-sign-in-alt mr-2"></i>
+                  Sign In
+                </div>
+              )}
+            </motion.button>
+          </div>
         </form>
-      </div>
+
+        {/* Help Section */}
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+          <div className="text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Need help accessing your account?
+            </p>
+            <div className="flex justify-center space-x-4 flex-wrap gap-2">
+              <Link
+                to="/admin/recovery"
+                className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors flex items-center"
+              >
+                <i className="fas fa-key mr-1"></i>
+                Emergency Recovery
+              </Link>
+              <button className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors flex items-center">
+                <i className="fas fa-phone mr-1"></i>
+                Contact Support
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

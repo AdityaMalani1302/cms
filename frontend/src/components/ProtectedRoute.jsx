@@ -32,7 +32,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   // Check if user has required role
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.userType)) {
     // Redirect to appropriate login page based on user type or path
-    const redirectPath = user.userType === 'deliveryAgent' 
+    const redirectPath = user.userType === 'delivery_agent' 
       ? '/delivery-agent/login'
       : user.userType === 'customer'
       ? '/customer/login'

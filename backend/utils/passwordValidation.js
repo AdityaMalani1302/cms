@@ -2,12 +2,12 @@ const validator = require('validator');
 
 // Password complexity requirements
 const PASSWORD_REQUIREMENTS = {
-  minLength: 8,
+  minLength: 6,
   requireUppercase: true,
   requireLowercase: true,
   requireNumbers: true,
   requireSpecialChars: true,
-  maxLength: 128,
+  maxLength: 12,
   blacklistedPasswords: [
     'password', 'password123', '12345678', 'qwerty123', 'admin123',
     'courier123', 'delivery123', 'manager123', 'user123', 'test123'

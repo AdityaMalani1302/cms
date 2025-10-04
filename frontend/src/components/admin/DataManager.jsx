@@ -24,7 +24,7 @@ const DataManager = ({ config }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const queryParams = new URLSearchParams();
       
       Object.entries(filters).forEach(([key, value]) => {
@@ -50,7 +50,13 @@ const DataManager = ({ config }) => {
 
   const handleAction = async (action, item = null) => {
     try {
-      const token = localStorage.getItem('adminToken');
+      // If action has custom onClick function, use it directly
+      if (action.onClick) {
+        action.onClick(item);
+        return;
+      }
+
+      const token = sessionStorage.getItem('adminToken');
       let response;
 
       switch (action.type) {
@@ -292,16 +298,23 @@ const DataManager = ({ config }) => {
                           ))}
                           {config.actions && (
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                              {Object.entries(config.actions).filter(([key]) => key !== 'create').map(([actionKey, action]) => (
-                                <button
-                                  key={actionKey}
-                                  onClick={() => handleAction(action, item)}
-                                  className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${action.className || 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                >
-                                  {action.icon && <i className={`fas ${action.icon} mr-1`}></i>}
-                                  {action.label}
-                                </button>
-                              ))}
+                              {Object.entries(config.actions).filter(([key]) => key !== 'create').map(([actionKey, action]) => {
+                                // Check if action has condition and should be shown
+                                if (action.condition && !action.condition(item)) {
+                                  return null;
+                                }
+                                
+                                return (
+                                  <button
+                                    key={actionKey}
+                                    onClick={() => handleAction(action, item)}
+                                    className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${action.className || 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                  >
+                                    {action.icon && <i className={`fas ${action.icon} mr-1`}></i>}
+                                    {action.label}
+                                  </button>
+                                );
+                              })}
                             </td>
                           )}
                         </tr>

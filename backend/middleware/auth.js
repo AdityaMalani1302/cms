@@ -93,13 +93,15 @@ const findUserById = async (id, userType) => {
 
 // Check user status and permissions
 const validateUserStatus = (user, userType) => {
+  if (!user) return false;
+  
   switch (userType) {
     case 'admin':
-      return user && user.status === 1;
+      return user.status === 1 || user.status === 'active';
     case 'delivery_agent':
-      return user && user.status === 'active';
+      return user.status === 'active' || user.status === 1 || user.isActive !== false;
     case 'customer':
-      return user && user.isActive;
+      return user.isActive !== false && user.status !== 'inactive';
     default:
       return false;
   }
@@ -115,7 +117,7 @@ const createAuthMiddleware = (allowedUserTypes = [], options = {}) => {
   
   return async (req, res, next) => {
     try {
-      const authHeader = req.header('Authorization');
+      const authHeader = req.get ? req.get('Authorization') : req.headers?.authorization;
       
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         if (optional) {
@@ -243,37 +245,32 @@ const refreshUserCache = async (req, res, next) => {
   next();
 };
 
-// Rate limiting for authentication failures
-const authFailures = new Map();
-const MAX_AUTH_FAILURES = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
-const LOCKOUT_TIME = parseInt(process.env.LOCKOUT_TIME) * 60 * 1000 || 15 * 60 * 1000; // 15 minutes
+// Rate limiting system removed for simplified college project
 
-const checkAuthRateLimit = (identifier) => {
-  const now = Date.now();
-  const failures = authFailures.get(identifier) || { count: 0, lastFailure: 0 };
-  
-  // Reset if lockout time has passed
-  if (now - failures.lastFailure > LOCKOUT_TIME) {
-    failures.count = 0;
-  }
-  
-  if (failures.count >= MAX_AUTH_FAILURES) {
-    const remainingTime = Math.ceil((LOCKOUT_TIME - (now - failures.lastFailure)) / 1000 / 60);
-    throw new Error(`Too many failed attempts. Try again in ${remainingTime} minutes.`);
-  }
-  
-  return failures;
+const checkAuthRateLimit = () => {
+  // Rate limiting disabled
+  return { count: 0, lastFailure: 0 };
 };
 
-const recordAuthFailure = (identifier) => {
-  const failures = authFailures.get(identifier) || { count: 0, lastFailure: 0 };
-  failures.count += 1;
-  failures.lastFailure = Date.now();
-  authFailures.set(identifier, failures);
+const checkIPRateLimit = () => {
+  // IP rate limiting disabled
+  return { count: 0, lastAttempt: 0 };
 };
 
-const clearAuthFailures = (identifier) => {
-  authFailures.delete(identifier);
+const recordAuthFailure = () => {
+  // Auth failure recording disabled
+};
+
+const recordIPAttempt = () => {
+  // IP attempt recording disabled
+};
+
+const clearAuthFailures = () => {
+  // Auth failure clearing disabled
+};
+
+const clearIPAttempts = () => {
+  // IP attempt clearing disabled
 };
 
 module.exports = {
@@ -301,8 +298,11 @@ module.exports = {
   
   // Rate limiting utilities
   checkAuthRateLimit,
+  checkIPRateLimit,
   recordAuthFailure,
+  recordIPAttempt,
   clearAuthFailures,
+  clearIPAttempts,
   
   // Cache utilities for external use
   cacheUtils

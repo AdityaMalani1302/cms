@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const validator = require('validator');
 const { validatePasswordComplexity } = require('../utils/passwordValidation');
 
 const adminSchema = new mongoose.Schema({
@@ -31,7 +32,13 @@ const adminSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     lowercase: true,
-    maxlength: 120
+    maxlength: 120,
+    validate: {
+      validator: function(email) {
+        return validator.isEmail(email);
+      },
+      message: 'Please provide a valid email address'
+    }
   },
   adminName: {
     type: String,
@@ -66,6 +73,19 @@ const adminSchema = new mongoose.Schema({
     type: Number,
     enum: [0, 1],
     default: 1
+  },
+  // Master recovery key tracking
+  masterRecoveryUsed: {
+    type: Date,
+    default: null
+  },
+  lastPasswordReset: {
+    type: Date,
+    default: null
+  },
+  passwordResetAttempts: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { validators } from '../../utils/validators';
-import { PasswordInput, GoogleOAuthButton } from '../../components/ui';
+import { PasswordInput } from '../../components/ui';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -12,16 +12,31 @@ const Register = () => {
     phoneNumber: '',
     password: '',
     confirmPassword: '',
-    street: '',
-    city: '',
-    state: '',
-    pincode: ''
+    securityQuestions: [
+      { question: '', answer: '' },
+      { question: '', answer: '' },
+      { question: '', answer: '' }
+    ]
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Predefined security questions
+  const securityQuestionsOptions = [
+    "What was your first pet's name?",
+    "In which city were you born?",
+    "What is your mother's maiden name?",
+    "What was the name of your first school?",
+    "What is your favorite book?",
+    "What was your childhood nickname?",
+    "What is the name of your best friend from childhood?",
+    "What was the make of your first car?",
+    "What is your favorite movie?",
+    "What street did you grow up on?"
+  ];
 
   // Validation function for individual fields
   const validateField = (fieldName, value) => {
@@ -32,24 +47,10 @@ const Register = () => {
         return validators.email.validate(value);
       case 'phoneNumber':
         return validators.phone.validate(value);
-      case 'street':
-        return validators.address.validate(value);
-      case 'city':
-        return validators.city.validate(value);
-      case 'state':
-        return validators.state.validate(value);
-      case 'pincode':
-        return validators.pincode.validate(value);
       case 'password':
-        if (!value || !value.trim()) return 'Password is required';
-        if (value.length < 6) return 'Password must be at least 6 characters';
-        if (value.length > 50) return 'Password cannot exceed 50 characters';
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) return 'Password must contain uppercase, lowercase, and number';
-        return null;
+        return validators.password.validate(value);
       case 'confirmPassword':
-        if (!value || !value.trim()) return 'Please confirm your password';
-        if (value !== formData.password) return 'Passwords do not match';
-        return null;
+        return validators.confirmPassword.validate(value, formData.password);
       default:
         return null;
     }
@@ -66,11 +67,47 @@ const Register = () => {
     newErrors.password = validateField('password', formData.password);
     newErrors.confirmPassword = validateField('confirmPassword', formData.confirmPassword);
     
-    // Address Information
-    newErrors.street = validateField('street', formData.street);
-    newErrors.city = validateField('city', formData.city);
-    newErrors.state = validateField('state', formData.state);
-    newErrors.pincode = validateField('pincode', formData.pincode);
+    // Security Questions Validation
+    const securityQuestionErrors = [];
+    let hasSecurityQuestionErrors = false;
+    
+    // Check if all 3 security questions are provided
+    const validQuestions = formData.securityQuestions.filter(sq => sq.question.trim() && sq.answer.trim());
+    if (validQuestions.length !== 3) {
+      newErrors.securityQuestions = { general: 'Please provide exactly 3 security questions with answers' };
+      hasSecurityQuestionErrors = true;
+    } else {
+      formData.securityQuestions.forEach((sq, index) => {
+        const questionError = {};
+        if (!sq.question.trim()) {
+          questionError.question = 'Please select a security question';
+          hasSecurityQuestionErrors = true;
+        }
+        if (!sq.answer.trim()) {
+          questionError.answer = 'Please provide an answer';
+          hasSecurityQuestionErrors = true;
+        } else if (sq.answer.trim().length < 2) {
+          questionError.answer = 'Answer must be at least 2 characters';
+          hasSecurityQuestionErrors = true;
+        }
+        
+        if (Object.keys(questionError).length > 0) {
+          securityQuestionErrors[index] = questionError;
+        }
+      });
+      
+      // Check for duplicate questions
+      const selectedQuestions = formData.securityQuestions.map(sq => sq.question).filter(q => q);
+      const uniqueQuestions = [...new Set(selectedQuestions)];
+      if (selectedQuestions.length !== uniqueQuestions.length) {
+        securityQuestionErrors.duplicateError = 'Please select different questions for each security question';
+        hasSecurityQuestionErrors = true;
+      }
+      
+      if (hasSecurityQuestionErrors) {
+        newErrors.securityQuestions = securityQuestionErrors;
+      }
+    }
     
     // Remove null errors
     Object.keys(newErrors).forEach(key => {
@@ -81,20 +118,6 @@ const Register = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Check if form is ready for submission
-  const isFormValid = () => {
-    // Check if all required fields are filled
-    const requiredFields = ['name', 'email', 'phoneNumber', 'password', 'confirmPassword', 'street', 'city', 'state', 'pincode'];
-    const hasAllRequiredFields = requiredFields.every(field => formData[field] && formData[field].trim());
-    
-    // Check if there are any current validation errors for touched fields
-    const hasCurrentErrors = Object.keys(errors).some(field => 
-      touched[field] && errors[field]
-    );
-    
-    return hasAllRequiredFields && !hasCurrentErrors;
-  };
-
   // Handle input change with validation
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -103,8 +126,6 @@ const Register = () => {
     let formattedValue = value;
     if (name === 'phoneNumber') {
       formattedValue = validators.phone.format ? validators.phone.format(value) : value;
-    } else if (name === 'pincode') {
-      formattedValue = validators.pincode.format ? validators.pincode.format(value) : value;
     }
     
     setFormData(prev => ({
@@ -190,8 +211,16 @@ const Register = () => {
     e.preventDefault();
     
     // Mark all fields as touched for validation
-    const allFields = ['name', 'email', 'phoneNumber', 'password', 'confirmPassword', 'street', 'city', 'state', 'pincode'];
+    const allFields = ['name', 'email', 'phoneNumber', 'password', 'confirmPassword'];
     setTouched(allFields.reduce((acc, field) => ({ ...acc, [field]: true }), {}));
+    
+    // Mark security questions as touched
+    const securityQuestionsTouched = {};
+    formData.securityQuestions.forEach((_, index) => {
+      securityQuestionsTouched[`securityQuestions.${index}.question`] = true;
+      securityQuestionsTouched[`securityQuestions.${index}.answer`] = true;
+    });
+    setTouched(prev => ({ ...prev, ...securityQuestionsTouched }));
     
     // Validate all fields before submission
     if (!validateForm()) {
@@ -208,13 +237,7 @@ const Register = () => {
         email: formData.email,
         phoneNumber: formData.phoneNumber,
         password: formData.password,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
-          country: 'India'
-        }
+        securityQuestions: formData.securityQuestions
       };
       
       console.log('Submitting registration data:', registrationData);
@@ -370,7 +393,7 @@ const Register = () => {
                     placeholder="Enter your password"
                     required
                     autoComplete="new-password"
-                    helpText="Must contain uppercase, lowercase, and number (minimum 6 characters)"
+                    helpText="6-12 characters with uppercase, lowercase, number, and special character"
                   />
                 </div>
                 
@@ -391,151 +414,121 @@ const Register = () => {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Address Information */}
-            <div>
-              <h3 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">Address Information</h3>
-              <div className="space-y-4">
-                {/* Street Address */}
-                <div>
-                  <label htmlFor="street" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">
-                    Street Address *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      name="street"
-                      id="street"
-                      required
-                      className={getInputClass('street')}
-                      value={formData.street}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter your street address"
-                    />
-                    {errors.street && touched.street && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <i className="fas fa-exclamation-circle text-red-500"></i>
-                      </div>
-                    )}
-                  </div>
-                  {errors.street && touched.street && (
-                    <p className="mt-1 text-sm text-red-600 flex items-center">
-                      <i className="fas fa-exclamation-triangle mr-1"></i>
-                      {errors.street}
-                    </p>
-                  )}
-                </div>
-                
-                {/* City, State, Pincode */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* City */}
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">
-                      City *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="city"
-                        id="city"
-                        required
-                        className={getInputClass('city')}
-                        value={formData.city}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="Enter city"
-                      />
-                      {errors.city && touched.city && (
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                          <i className="fas fa-exclamation-circle text-red-500"></i>
-                        </div>
-                      )}
-                    </div>
-                    {errors.city && touched.city && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <i className="fas fa-exclamation-triangle mr-1"></i>
-                        {errors.city}
-                      </p>
-                    )}
-                  </div>
+          {/* Security Questions Section */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-4">
+              <i className="fas fa-shield-alt mr-2"></i>
+              Security Questions (For Password Recovery)
+            </h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+              Choose 3 security questions to help recover your account if you forget your password.
+            </p>
+            
+            <div className="space-y-4">
+              {formData.securityQuestions.map((sq, index) => (
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-200 dark:border-blue-600">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Security Question {index + 1}
+                  </h4>
                   
-                  {/* State */}
-                  <div>
-                    <label htmlFor="state" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">
-                      State *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="state"
-                        id="state"
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Question
+                      </label>
+                      <select
+                        value={sq.question}
+                        onChange={(e) => {
+                          const newQuestions = [...formData.securityQuestions];
+                          newQuestions[index].question = e.target.value;
+                          setFormData({ ...formData, securityQuestions: newQuestions });
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm ${
+                          errors.securityQuestions?.[index]?.question 
+                            ? 'border-red-500 dark:border-red-400' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
                         required
-                        className={getInputClass('state')}
-                        value={formData.state}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="Enter state"
-                      />
-                      {errors.state && touched.state && (
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                          <i className="fas fa-exclamation-circle text-red-500"></i>
-                        </div>
+                      >
+                        <option value="">Select a security question</option>
+                        {securityQuestionsOptions.map((question, qIndex) => (
+                          <option key={qIndex} value={question}>
+                            {question}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.securityQuestions?.[index]?.question && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.securityQuestions[index].question}
+                        </p>
                       )}
                     </div>
-                    {errors.state && touched.state && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <i className="fas fa-exclamation-triangle mr-1"></i>
-                        {errors.state}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Pincode */}
-                  <div>
-                    <label htmlFor="pincode" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">
-                      Pincode *
-                    </label>
-                    <div className="relative">
+                    
+                    <div>
+                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Answer
+                      </label>
                       <input
                         type="text"
-                        name="pincode"
-                        id="pincode"
+                        value={sq.answer}
+                        onChange={(e) => {
+                          const newQuestions = [...formData.securityQuestions];
+                          newQuestions[index].answer = e.target.value;
+                          setFormData({ ...formData, securityQuestions: newQuestions });
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm ${
+                          errors.securityQuestions?.[index]?.answer 
+                            ? 'border-red-500 dark:border-red-400' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="Enter your answer"
                         required
-                        className={getInputClass('pincode')}
-                        value={formData.pincode}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="Enter pincode"
-                        maxLength="6"
                       />
-                      {errors.pincode && touched.pincode && (
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                          <i className="fas fa-exclamation-circle text-red-500"></i>
-                        </div>
+                      {errors.securityQuestions?.[index]?.answer && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.securityQuestions[index].answer}
+                        </p>
                       )}
                     </div>
-                    {errors.pincode && touched.pincode && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <i className="fas fa-exclamation-triangle mr-1"></i>
-                        {errors.pincode}
-                      </p>
-                    )}
-                    {formData.pincode && (
-                      <p className="mt-1 text-xs text-gray-500 text-right">{formData.pincode.length}/6</p>
-                    )}
                   </div>
                 </div>
+              ))}
+            </div>
+            
+            {errors.securityQuestions?.duplicateError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 mt-4">
+                <p className="text-red-800 dark:text-red-200 text-sm">
+                  <i className="fas fa-exclamation-circle mr-1"></i>
+                  {errors.securityQuestions.duplicateError}
+                </p>
               </div>
+            )}
+            
+            {errors.securityQuestions?.general && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 mt-4">
+                <p className="text-red-800 dark:text-red-200 text-sm">
+                  <i className="fas fa-exclamation-circle mr-1"></i>
+                  {errors.securityQuestions.general}
+                </p>
+              </div>
+            )}
+            
+            <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3">
+              <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                <i className="fas fa-exclamation-triangle mr-1"></i>
+                <strong>Important:</strong> Remember your answers! They will be used to recover your account if you forget your password.
+              </p>
             </div>
           </div>
 
           {/* Submit Button */}
-          <div>
+          <div className="flex justify-center">
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="group relative flex justify-center py-3 px-8 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 min-w-[280px]"
             >
               {loading ? (
                 <div className="flex items-center">
@@ -549,23 +542,6 @@ const Register = () => {
                 'Create Account'
               )}
             </button>
-          </div>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                Or sign up with
-              </span>
-            </div>
-          </div>
-
-          {/* Google OAuth Button */}
-          <div>
-            <GoogleOAuthButton mode="register" />
           </div>
 
           <div className="text-center">

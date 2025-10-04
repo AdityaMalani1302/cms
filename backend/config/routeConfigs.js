@@ -39,12 +39,33 @@ const courierConfig = {
     return {};
   },
   beforeCreate: async (data, req) => {
-    // Auto-generate reference number if not provided
+    // Auto-generate TRK reference number if not provided
     if (!data.refNumber) {
-      const lastCourier = await Courier.findOne({}, {}, { sort: { 'createdAt': -1 } });
-      const lastRefNum = lastCourier?.refNumber || 'CMS000000';
-      const newNum = parseInt(lastRefNum.replace('CMS', '')) + 1;
-      data.refNumber = `CMS${newNum.toString().padStart(6, '0')}`;
+      try {
+        let refNumber;
+        let isUnique = false;
+        
+        // Keep generating until we get a unique TRK ID
+        while (!isUnique) {
+          const prefix = 'TRK';
+          const randomNum = Math.floor(100000000 + Math.random() * 900000000);
+          refNumber = `${prefix}${randomNum}`;
+          
+          // Check if this refNumber already exists
+          const existingCourier = await Courier.findOne({ refNumber });
+          if (!existingCourier) {
+            isUnique = true;
+          }
+        }
+        
+        data.refNumber = refNumber;
+        console.log('✅ Generated TRK refNumber:', data.refNumber);
+      } catch (error) {
+        console.error('❌ Error generating TRK refNumber:', error);
+        // Fallback to timestamp-based generation
+        const fallbackNum = Math.floor(100000000 + Math.random() * 900000000);
+        data.refNumber = `TRK${fallbackNum}`;
+      }
     }
     return data;
   }
@@ -57,7 +78,7 @@ const complaintConfig = {
   searchFields: ['ticketId', 'subject', 'customerName', 'customerEmail', 'customerMobileNumber'],
   allowedUpdateFields: [
     'subject', 'description', 'category', 'priority', 'status', 'assignedTo', 
-    'resolution', 'resolutionType', 'customerSatisfaction', 'internalNotes'
+    'resolution', 'resolutionType', 'customerSatisfaction', 'internalNotes', 'remark', 'communicationHistory'
   ],
   statsConfig: {
     open: { 

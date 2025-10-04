@@ -1,17 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import moment from 'moment';
 import clsx from 'clsx';
+import { TrackingTimeline } from '../../components/ui';
 
 const TrackParcel = () => {
   const [searchData, setSearchData] = useState('');
-  const [trackingResult, setTrackingResult] = useState(null);
+  const [trackingInfo, setTrackingInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
   const [searchParams] = useSearchParams();
+
+  const handleSearch = useCallback(async (refNumber = searchData) => {
+    if (!refNumber.trim()) {
+      showToast.error('Please enter a tracking number');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      // Use the new enhanced tracking API
+      const response = await axios.get(`${baseURL}/api/tracking/enhanced/${refNumber.trim()}`);
+
+      if (response.data.success) {
+        setTrackingInfo(response.data.trackingInfo);
+        showToast.success('Package found! Here are the latest updates.');
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        showToast.error('Package not found. Please check your tracking number.');
+        setTrackingInfo(null);
+      } else {
+        showToast.error('Unable to fetch tracking information. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [searchData]);
 
   useEffect(() => {
     // Check if search data was passed from URL params or state
@@ -20,398 +48,237 @@ const TrackParcel = () => {
       setSearchData(trackingId);
       handleSearch(trackingId);
     }
-  }, [location.state, searchParams]);
-
-  const handleSearch = async (refNumber = searchData) => {
-    if (!refNumber.trim()) {
-      toast.error('Please enter a tracking number');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await axios.get(`${baseURL}/api/customer-tracking/${refNumber.trim()}`);
-
-      if (response.data.success) {
-        setTrackingResult(response.data.booking);
-        toast.success('Tracking information found');
-      }
-    } catch (error) {
-      if (error.response?.status === 404) {
-        toast.error('Invalid Tracking / Reference Number');
-        setTrackingResult(null);
-      } else {
-        toast.error('Error occurred while tracking. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [location.state, searchParams, handleSearch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     handleSearch();
   };
 
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'Pending Pickup':
-        return 'status-badge-pending';
-      case 'Picked Up':
-        return 'status-badge-processing';
-      case 'In Transit':
-        return 'status-badge-shipped';
-      case 'Out for Delivery':
-        return 'status-badge-processing';
-      case 'Delivered':
-        return 'status-badge-delivered';
-      case 'Cancelled':
-        return 'status-badge-cancelled';
-      default:
-        return 'status-badge-pending';
-    }
-  };
+  const getDeliveryStatusCard = () => {
+    if (!trackingInfo) return null;
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Pending Pickup':
-        return <i className="fas fa-clock"></i>;
-      case 'Picked Up':
-        return <i className="fas fa-hand-holding-box"></i>;
-      case 'In Transit':
-        return <i className="fas fa-route"></i>;
-      case 'Out for Delivery':
-        return <i className="fas fa-truck"></i>;
-      case 'Delivered':
-        return <i className="fas fa-check-circle"></i>;
-      case 'Cancelled':
-        return <i className="fas fa-times-circle"></i>;
-      default:
-        return <i className="fas fa-info-circle"></i>;
+    if (trackingInfo.isDelivered) {
+      return (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mr-4">
+              <i className="fas fa-check text-white text-xl"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-green-800 dark:text-green-300">Package Delivered</h3>
+              <p className="text-green-600 dark:text-green-400">Your package has been delivered successfully</p>
+            </div>
+          </div>
+        </div>
+      );
     }
-  };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending Pickup':
-        return 'text-yellow-600';
-      case 'Picked Up':
-        return 'text-blue-600';
-      case 'In Transit':
-        return 'text-purple-600';
-      case 'Out for Delivery':
-        return 'text-orange-600';
-      case 'Delivered':
-        return 'text-green-600';
-      case 'Cancelled':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
+    if (trackingInfo.isOutForDelivery) {
+      return (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mr-4">
+              <i className="fas fa-truck text-white text-xl"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Out for Delivery</h3>
+              <p className="text-blue-600 dark:text-blue-400">Your package is out for delivery - {trackingInfo.estimatedDelivery}</p>
+            </div>
+          </div>
+        </div>
+      );
     }
-  };
 
-  const getProgressPercentage = (status) => {
-    switch (status) {
-      case 'Pending Pickup':
-        return 10;
-      case 'Picked Up':
-        return 30;
-      case 'In Transit':
-        return 60;
-      case 'Out for Delivery':
-        return 85;
-      case 'Delivered':
-        return 100;
-      case 'Cancelled':
-        return 0;
-      default:
-        return 0;
+    if (trackingInfo.isInTransit) {
+      return (
+        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6 mb-6">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mr-4">
+              <i className="fas fa-route text-white text-xl"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-purple-800 dark:text-purple-300">In Transit</h3>
+              <p className="text-purple-600 dark:text-purple-400">Your package is on the way - {trackingInfo.estimatedDelivery}</p>
+            </div>
+          </div>
+        </div>
+      );
     }
-  };
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4 }
-    }
+    return (
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
+        <div className="flex items-center">
+          <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mr-4">
+            <i className="fas fa-clock text-white text-xl"></i>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-300">Processing</h3>
+            <p className="text-yellow-600 dark:text-yellow-400">Your package is being processed - {trackingInfo.estimatedDelivery}</p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-primary-50 dark:from-secondary-900 dark:to-secondary-800">
-      {/* Hero Section */}
-      <section className="relative gradient-bg-success overflow-hidden py-20">
-        <div className="absolute inset-0 hero-pattern"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
-              <i className="fas fa-search-location text-white text-3xl"></i>
+      {/* Header Section */}
+      <div className="bg-white dark:bg-secondary-800 shadow-sm border-b border-gray-200 dark:border-secondary-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="fas fa-search-location text-white text-2xl"></i>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-white font-display mb-4">
-              Track Your Package
-            </h1>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto">
-              Enter your tracking number to get real-time updates on your shipment status and location
-            </p>
-          </motion.div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Track Your Package</h1>
+            <p className="text-gray-600 dark:text-gray-400">Enter your tracking number to get real-time updates</p>
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* Main Content */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-8"
-          >
-            {/* Search Form */}
-            <motion.div variants={itemVariants} className="max-w-4xl mx-auto">
-              <div className="card-elevated p-8">
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-barcode text-white text-xl"></i>
-                  </div>
-                  <h2 className="text-2xl font-bold text-secondary-800 dark:text-white mb-2">Enter Tracking Number</h2>
-                  <p className="text-secondary-600 dark:text-secondary-400">Input your reference number to start tracking</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <label className="block text-sm font-semibold text-secondary-700 dark:text-secondary-300 mb-2">
-                        <i className="fas fa-hashtag text-primary-500 mr-2"></i>
-                        Tracking / Reference Number
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter your tracking number (e.g., TRK123456789)"
-                        value={searchData}
-                        onChange={(e) => setSearchData(e.target.value)}
-                        required
-                        className="input-field text-lg"
-                      />
-                    </div>
-                    <div className="sm:mt-7">
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className={clsx(
-                          'btn-primary w-full sm:w-auto px-8 py-4 text-lg',
-                          loading && 'opacity-50 cursor-not-allowed'
-                        )}
-                      >
-                        {loading ? (
-                          <>
-                            <i className="fas fa-spinner fa-spin mr-2"></i>
-                            Searching...
-                          </>
-                        ) : (
-                          <>
-                            <i className="fas fa-search mr-2"></i>
-                            Track Package
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-
-            {/* Tracking Results */}
-            {trackingResult && (
-              <motion.div variants={itemVariants} className="max-w-6xl mx-auto">
-                <div className="card-elevated p-8">
-                  <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-secondary-900 dark:text-white mb-2">
-                      Package Details
-                    </h2>
-                    <p className="text-secondary-600 dark:text-secondary-400">
-                      Tracking ID: <span className="font-semibold text-primary-600">{trackingResult.trackingId}</span>
-                    </p>
-                  </div>
-
-                  {/* Status Progress */}
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-secondary-900 dark:text-white">
-                        Current Status
-                      </h3>
-                      <span className={clsx(
-                        'inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold',
-                        getStatusBadgeClass(trackingResult.status)
-                      )}>
-                        <span className={clsx('mr-2', getStatusColor(trackingResult.status))}>
-                          {getStatusIcon(trackingResult.status)}
-                        </span>
-                        {trackingResult.status}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="relative">
-                      <div className="w-full bg-secondary-200 dark:bg-secondary-700 rounded-full h-3">
-                        <div
-                          className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-1000 ease-out"
-                          style={{ width: `${getProgressPercentage(trackingResult.status)}%` }}
-                        ></div>
-                      </div>
-                      <div className="absolute top-1/2 left-0 transform -translate-y-1/2 text-xs font-medium text-white bg-primary-600 px-2 py-1 rounded-full"
-                           style={{ left: `${Math.max(getProgressPercentage(trackingResult.status) - 5, 0)}%` }}>
-                        {getProgressPercentage(trackingResult.status)}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Package Information */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    {/* Pickup Details */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-secondary-900 dark:text-white border-b border-secondary-200 dark:border-secondary-700 pb-2">
-                        <i className="fas fa-map-marker-alt text-primary-600 mr-2"></i>
-                        Pickup Details
-                      </h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Address</p>
-                          <p className="text-secondary-600 dark:text-secondary-400">
-                            {trackingResult.pickupAddress?.street}, {trackingResult.pickupAddress?.city}, {trackingResult.pickupAddress?.state} - {trackingResult.pickupAddress?.pincode}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Pickup Date</p>
-                          <p className="text-secondary-600 dark:text-secondary-400">
-                            {moment(trackingResult.pickupDate).format('MMMM DD, YYYY [at] HH:mm')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Delivery Details */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-secondary-900 dark:text-white border-b border-secondary-200 dark:border-secondary-700 pb-2">
-                        <i className="fas fa-flag-checkered text-primary-600 mr-2"></i>
-                        Delivery Details
-                      </h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Address</p>
-                          <p className="text-secondary-600 dark:text-secondary-400">
-                            {trackingResult.deliveryAddress?.street}, {trackingResult.deliveryAddress?.city}, {trackingResult.deliveryAddress?.state} - {trackingResult.deliveryAddress?.pincode}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Recipient</p>
-                          <p className="text-secondary-600 dark:text-secondary-400">
-                            {trackingResult.recipientName}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Expected Delivery</p>
-                          <p className="text-secondary-600 dark:text-secondary-400">
-                            {moment(trackingResult.expectedDeliveryDate).format('MMMM DD, YYYY')}
-                          </p>
-                        </div>
-                        {trackingResult.actualDeliveryDate && (
-                          <div>
-                            <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Actual Delivery</p>
-                            <p className="text-green-600 dark:text-green-400 font-semibold">
-                              {moment(trackingResult.actualDeliveryDate).format('MMMM DD, YYYY [at] HH:mm')}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Package Information */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="text-center p-4 bg-secondary-50 dark:bg-secondary-800 rounded-xl">
-                      <i className="fas fa-box text-primary-600 text-2xl mb-2"></i>
-                      <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Package Type</p>
-                      <p className="text-secondary-900 dark:text-white font-semibold">{trackingResult.packageType}</p>
-                    </div>
-                    <div className="text-center p-4 bg-secondary-50 dark:bg-secondary-800 rounded-xl">
-                      <i className="fas fa-weight text-primary-600 text-2xl mb-2"></i>
-                      <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Weight</p>
-                      <p className="text-secondary-900 dark:text-white font-semibold">{trackingResult.weight} kg</p>
-                    </div>
-                    <div className="text-center p-4 bg-secondary-50 dark:bg-secondary-800 rounded-xl">
-                      <i className="fas fa-tachometer-alt text-primary-600 text-2xl mb-2"></i>
-                      <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Delivery Speed</p>
-                      <p className="text-secondary-900 dark:text-white font-semibold">{trackingResult.deliverySpeed}</p>
-                    </div>
-                    <div className="text-center p-4 bg-secondary-50 dark:bg-secondary-800 rounded-xl">
-                      <i className="fas fa-rupee-sign text-primary-600 text-2xl mb-2"></i>
-                      <p className="text-sm font-medium text-secondary-700 dark:text-secondary-300">Cost</p>
-                      <p className="text-secondary-900 dark:text-white font-semibold">₹{trackingResult.estimatedCost}</p>
-                    </div>
-                  </div>
-
-                  {/* Status History */}
-                  {trackingResult.statusHistory && trackingResult.statusHistory.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4">
-                        <i className="fas fa-history text-primary-600 mr-2"></i>
-                        Status History
-                      </h3>
-                      <div className="space-y-4">
-                        {trackingResult.statusHistory.map((history, index) => (
-                          <div key={index} className="flex items-start space-x-4 p-4 bg-secondary-50 dark:bg-secondary-800 rounded-xl">
-                            <div className={clsx(
-                              'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-                              getStatusColor(history.status).replace('text-', 'bg-').replace('-600', '-100 text-') + getStatusColor(history.status).split('-')[1] + '-600'
-                            )}>
-                              {getStatusIcon(history.status)}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-secondary-900 dark:text-white">{history.status}</p>
-                              <p className="text-sm text-secondary-600 dark:text-secondary-400">
-                                {moment(history.timestamp).format('MMMM DD, YYYY [at] HH:mm')}
-                              </p>
-                              {history.location && (
-                                <p className="text-sm text-secondary-500 dark:text-secondary-400">
-                                  <i className="fas fa-map-marker-alt mr-1"></i>
-                                  {history.location}
-                                </p>
-                              )}
-                              {history.notes && (
-                                <p className="text-sm text-secondary-600 dark:text-secondary-400 mt-1">
-                                  {history.notes}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Form */}
+        <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-gray-200 dark:border-secondary-700 p-6 mb-8">
+          <form onSubmit={handleSubmit} className="flex gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Enter tracking number (e.g., 123456789)"
+                value={searchData}
+                onChange={(e) => setSearchData(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg bg-white dark:bg-secondary-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className={clsx(
+                'px-6 py-3 bg-blue-500 text-white rounded-lg font-medium transition-colors',
+                loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+              )}
+            >
+              {loading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-search mr-2"></i>
+                  Track Package
+                </>
+              )}
+            </button>
+          </form>
         </div>
-      </section>
+
+        {/* Tracking Results */}
+        {trackingInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-6"
+          >
+            {/* Header with Package Info */}
+            <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-gray-200 dark:border-secondary-700 p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    {trackingInfo.packageInfo.description}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 mb-2">
+                    <span className="font-medium">Tracking ID:</span> {trackingInfo.trackingId}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Ordered:</span> {trackingInfo.orderDate}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                    {trackingInfo.estimatedDelivery}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {trackingInfo.shippingMethod.name}
+                  </div>
+                </div>
+              </div>
+
+              {/* Amazon-style Status Alert */}
+              {getDeliveryStatusCard()}
+            </div>
+
+            {/* Timeline */}
+            <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-gray-200 dark:border-secondary-700 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Package Journey</h3>
+              <TrackingTimeline timeline={trackingInfo.timeline} isLoading={loading} />
+            </div>
+
+            {/* Package Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Shipping Details */}
+              <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-gray-200 dark:border-secondary-700 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Shipping Details</h3>
+                <div className="space-y-3">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Carrier</dt>
+                    <dd className="text-sm text-gray-900 dark:text-white">{trackingInfo.shippingMethod.carrier}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Service</dt>
+                    <dd className="text-sm text-gray-900 dark:text-white">{trackingInfo.shippingMethod.service}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Weight</dt>
+                    <dd className="text-sm text-gray-900 dark:text-white">{trackingInfo.packageInfo.weight} kg</dd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-gray-200 dark:border-secondary-700 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Delivery Address</h3>
+                <div className="space-y-2">
+                  <p className="font-medium text-gray-900 dark:text-white">{trackingInfo.recipient.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{trackingInfo.recipient.address}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {trackingInfo.recipient.city}, {trackingInfo.recipient.state} - {trackingInfo.recipient.pincode}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Help Section */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-2">Need Help?</h3>
+              <p className="text-blue-700 dark:text-blue-400 mb-4">{trackingInfo.nextUpdate}</p>
+              <div className="flex flex-wrap gap-2">
+                <button className="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 rounded-md text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-blue-900/20 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors">
+                  <i className="fas fa-phone mr-2"></i>
+                  Contact Support
+                </button>
+                <button className="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 rounded-md text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-blue-900/20 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors">
+                  <i className="fas fa-envelope mr-2"></i>
+                  Email Updates
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* No results message */}
+        {!loading && !trackingInfo && searchData && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="fas fa-search text-gray-400 dark:text-gray-500 text-xl"></i>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No package found</h3>
+            <p className="text-gray-600 dark:text-gray-400">Please check your tracking number and try again.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

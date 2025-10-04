@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import moment from 'moment';
@@ -15,7 +15,7 @@ const TrackComplaint = () => {
 
   const handleTrack = useCallback(async (ticket = ticketNumber) => {
     if (!ticket.trim()) {
-      toast.error('Please enter a ticket number');
+      showToast.error('Please enter a ticket number');
       return;
     }
 
@@ -27,14 +27,24 @@ const TrackComplaint = () => {
       const response = await axios.get(`${baseURL}/api/complaints/track/${ticket.trim()}`);
       
       if (response.data.success) {
-        setComplaintResult(response.data.data);
-        toast.success('Complaint found successfully');
+        const complaintData = response.data.data;
+        
+        // Debug: Log complaint data structure
+        console.log('TrackComplaint - Raw complaint data:', complaintData);
+        console.log('TrackComplaint - Admin reply field:', complaintData.adminReply);
+        console.log('TrackComplaint - Remark field:', complaintData.remark);
+        
+        setComplaintResult(complaintData);
+        // Only show success toast for manual searches, not automatic refreshes
+        if (ticket === ticketNumber) {
+          showToast.success('Complaint found successfully');
+        }
       }
     } catch (error) {
       if (error.response?.status === 404) {
-        toast.error('Invalid ticket number. Please check and try again.');
+        showToast.error('Invalid ticket number. Please check and try again.');
       } else {
-        toast.error('Error tracking complaint. Please try again.');
+        showToast.error('Error tracking complaint. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -294,6 +304,8 @@ const TrackComplaint = () => {
                             </p>
                           </div>
                         </div>
+
+                        
                       </div>
                     </div>
 
@@ -351,14 +363,52 @@ const TrackComplaint = () => {
                     </div>
                   </div>
 
-                  {/* Admin Remarks */}
-                  {complaintResult.remark && (
+                  {/* Communication History - Admin Responses */}
+                  {complaintResult.communicationHistory && complaintResult.communicationHistory.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4">
+                        <i className="fas fa-comments text-primary-600 mr-2"></i>
+                        Admin Responses
+                      </h3>
+                      <div className="space-y-4">
+                        {complaintResult.communicationHistory
+                          .filter(comm => comm.type === 'Admin Response')
+                          .map((response, index) => (
+                            <div key={index} className="p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-lg">
+                              <div className="flex items-start justify-between mb-2">
+                                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                  Admin Response
+                                </span>
+                                <span className="text-xs text-secondary-500 dark:text-secondary-400">
+                                  {moment(response.addedAt).format('MMM DD, YYYY [at] HH:mm')}
+                                </span>
+                              </div>
+                              <p className="text-secondary-700 dark:text-secondary-300 whitespace-pre-wrap">
+                                {response.message}
+                              </p>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback to Admin Remarks if no communication history */}
+                  {complaintResult.remark && (!complaintResult.communicationHistory || complaintResult.communicationHistory.filter(comm => comm.type === 'Admin Response').length === 0) && (
                     <div className="mb-8">
                       <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4">
                         <i className="fas fa-comment text-primary-600 mr-2"></i>
                         Admin Remarks
                       </h3>
                       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                            Admin Response
+                          </span>
+                          <span className="text-xs text-secondary-500 dark:text-secondary-400">
+                            {moment(complaintResult.updationDate).format('MMM DD, YYYY [at] HH:mm')}
+                          </span>
+                        </div>
                         <p className="text-secondary-700 dark:text-secondary-300 whitespace-pre-wrap">
                           {complaintResult.remark}
                         </p>
@@ -368,24 +418,6 @@ const TrackComplaint = () => {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-secondary-200 dark:border-secondary-700">
-                    <button
-                      onClick={() => window.print()}
-                      className="btn-outline-primary"
-                    >
-                      <i className="fas fa-print mr-2"></i>
-                      Print Details
-                    </button>
-                    
-                    {complaintResult.status !== 'Resolved' && complaintResult.status !== 'Closed' && (
-                      <a
-                        href="/customer/support"
-                        className="btn-outline-secondary"
-                      >
-                        <i className="fas fa-headset mr-2"></i>
-                        Contact Support
-                      </a>
-                    )}
-
                     <button
                       onClick={() => {
                         setTicketNumber('');
